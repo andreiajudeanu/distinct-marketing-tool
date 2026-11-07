@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Distinct Watch",
+  "version": "0.1.0",
+  "description": "Urmărește piața, arată schimbările cu dovezi și propune experimente pe pagina ta.",
+  "action": { "default_title": "Distinct Watch" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "side_panel": { "default_path": "panel.html" },
+  "permissions": ["sidePanel", "storage", "scripting", "activeTab", "tabs"],
+  "host_permissions": ["http://localhost:8787/*", "http://localhost:8788/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"]
+}

@@ -1,0 +1,171 @@
+/* Results page. Builds on panel.css: same tokens, same surfaces, wider layout. */
+.report { max-width: 1040px; margin: 0 auto; outline: none; }
+
+.report > .banner { margin-bottom: 12px; }
+.report .hero { min-height: 250px; }
+.report .hero .pills { margin-top: 8px; }
+.report section[id] { scroll-margin-top: 64px; }
+
+.card-body { display: grid; gap: 10px; padding: 14px; }
+
+.report h3 { font-size: 18px; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; }
+.report h4 { margin: 4px 0 0; color: var(--ink-2); font-size: 12.5px; font-weight: 700; }
+
+.report .facts dd { display: grid; gap: 2px; font-weight: 500; overflow-wrap: anywhere; }
+.report .facts .pill { width: fit-content; background: var(--surface); }
+.report details .facts { margin-top: 8px; }
+
+.lead { margin: -2px 12px 10px; }
+
+.lede {
+  margin-bottom: 12px;
+  padding: 16px 18px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Market */
+.market-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.market-name { font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
+.signals { display: grid; gap: 6px; margin-top: 8px; font-size: 13px; }
+.signals li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+
+.market-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.market-form label { display: grid; gap: 3px; color: var(--ink-2); font-size: 12px; font-weight: 600; }
+
+.market-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--control);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Competitors */
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 10px; }
+.competitor { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.competitor-body { display: grid; gap: 8px; padding: 14px; font-size: 13.5px; }
+
+.shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top;
+  background: var(--control);
+}
+
+.card > .shot { border-radius: 20px; }
+
+.shot-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  aspect-ratio: 16 / 10;
+  background: var(--control);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card > .shot-missing { border-radius: 20px; }
+
+.sources { display: grid; gap: 4px; margin-top: 6px; }
+
+/* Citations */
+.cites { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+
+.cite {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cite:hover { text-decoration: underline; }
+.cite.static:hover { text-decoration: none; }
+
+.claims { display: grid; gap: 7px; font-size: 13.5px; }
+.claims li { display: grid; gap: 3px; overflow-wrap: anywhere; }
+.compare-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 10px; }
+.compare-grid .card { align-content: start; margin-bottom: 0; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.swatch i {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+/* Recommendations */
+.rec-head { display: flex; align-items: flex-start; gap: 10px; }
+
+.rec-number {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: var(--cta);
+  background-image: var(--tube);
+  color: var(--on-cta);
+  font-weight: 800;
+}
+
+.recommendation .variant { padding-right: 16px; }
+.recommendation .variant .handle { background: var(--surface); }
+.assumptions { display: grid; gap: 5px; font-size: 13px; }
+.assumptions li { display: flex; align-items: flex-start; gap: 6px; }
+.assumptions .icon { margin-top: 1px; color: var(--warn); }
+
+/* Folded lists */
+.skipped { margin-top: 10px; padding: 14px 16px; }
+.skipped ul { margin-top: 6px; }
+.skipped .list-row { flex-wrap: wrap; padding: 8px 0; }
+.skipped .row + .row::before { right: 0; left: 0; }
+.skipped .steps { margin-top: 10px; }
+
+.evidence-list { display: grid; gap: 10px; font-size: 13px; }
+.evidence-list li { display: flex; align-items: flex-start; gap: 8px; overflow-wrap: anywhere; scroll-margin-top: 80px; }
+.evidence-list li:target { outline: 2px solid var(--cta); outline-offset: 3px; border-radius: 8px; }
+
+/* Progress, also shown in the panel */
+.steps { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+.step { display: flex; align-items: flex-start; gap: 9px; }
+.step > .icon, .step > .spinner { flex: none; margin-top: 2px; }
+.step-text { display: grid; min-width: 0; }
+.step-text strong { font-weight: 600; }
+.step.pending, .step.skipped { color: var(--ink-2); }
+.step.done > .icon { color: var(--ok); }
+.step.failed > .icon { color: var(--bad); }
+
+@media (min-width: 720px) {
+  .report .hero { padding: 72px 30px 26px; }
+  .report .hero h1 { font-size: 44px; }
+  .report .hero > .hero-object { right: 24px; max-width: 280px; }
+  #rezumat { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+}

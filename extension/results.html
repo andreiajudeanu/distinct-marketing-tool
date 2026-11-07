@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Raport Distinct Watch</title>
+  <link rel="stylesheet" href="panel.css">
+  <link rel="stylesheet" href="report.css">
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="shell">
+    <div id="scroller" class="scroller">
+      <header class="navbar">
+        <img class="logo" src="assets/3d/bot.webp" alt="" width="34" height="34">
+        <span class="nav-title">Raport de piață</span>
+        <span id="mode" class="mode"></span>
+      </header>
+      <main id="report" class="report" tabindex="-1"></main>
+    </div>
+  </div>
+  <nav class="dock" aria-label="Secțiuni raport">
+    <span id="tab-indicator" class="tab-indicator" aria-hidden="true"></span>
+    <div id="dock-items" class="dock-items"></div>
+  </nav>
+  <script type="module" src="results.js"></script>
+</body>
+</html>

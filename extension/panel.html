@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Distinct Watch</title>
+  <link rel="stylesheet" href="panel.css">
+  <link rel="stylesheet" href="report.css">
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="shell">
+    <div id="scroller" class="scroller">
+      <header class="navbar">
+        <img class="logo" src="assets/3d/bot.webp" alt="" width="34" height="34">
+        <span id="nav-title" class="nav-title"></span>
+        <span id="mode" class="mode"></span>
+      </header>
+      <p id="notice" class="banner floating" role="alert" hidden></p>
+      <main id="app"></main>
+    </div>
+  </div>
+  <nav class="dock" aria-label="Ecrane">
+    <span id="tab-indicator" class="tab-indicator" aria-hidden="true"></span>
+    <div id="tabbar" class="dock-items"></div>
+  </nav>
+  <dialog id="sheet" class="sheet" aria-labelledby="sheet-title"></dialog>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>
