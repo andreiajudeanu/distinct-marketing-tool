@@ -11,3 +11,4 @@ videos/**/out/
 videos/**/.hyperframes/
 videos/**/assets/audio/
 videos/**/assets/sfx/*.mp3
+examples/
