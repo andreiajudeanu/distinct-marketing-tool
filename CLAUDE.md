@@ -14,15 +14,15 @@ npm test
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m playwright install chromium-headless-shell
-.\.venv\Scripts\python.exe backend\run.py
+npm run backend
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
 ```
 
 - `npm start` pornește serverul Node pe `http://localhost:8787`, cu magazinul demo la `/demo/shop` și controlul demo la `/demo/control`.
-- `backend\run.py` pornește analiza de site-uri pe `http://localhost:8788`.
+- `npm run backend` pornește analiza de site-uri pe `http://localhost:8788`, cu Python-ul din `.venv`.
 - Cheile stau doar în `.env`. Niciodată în `.env.example`, care nu e ignorat de Git.
-- Pagina demo de pe `localhost` folosește mereu date marcate SIMULAT. Un site real fără cheie primește o eroare, niciodată date fictive.
-- `ANALYSIS_MODE=mock` forțează raportul din `backend/fixtures/demo_result.json`, tot marcat SIMULAT.
+- Pagina demo de pe `localhost` folosește mereu date marcate SIMULATED. Un site real fără cheie primește o eroare, niciodată date fictive.
+- `ANALYSIS_MODE=mock` forțează raportul din `backend/fixtures/demo_result.json`, tot marcat SIMULATED.
 - Extensia se încarcă din `chrome://extensions`, cu Load unpacked pe folderul `extension`.
 - Nu există pas de build pentru extensie. JavaScript-ul rulează direct.
 
@@ -34,11 +34,12 @@ extension/
   background.js     deschide panoul la clic pe iconiță
   panel.html        scheletul static
   panel.js          stare, acțiuni, I/O Chrome, randare
-  panel.css         tokeni, componente, mișcare
+  app.css           tokeni, componente, ecrane
   results.html/.js  pagina de raport, urmărește jobul
-  report.css        stiluri pentru raport, peste panel.css
   ui/views.js       funcții pure stare -> HTML
   ui/report.js      funcții pure job -> HTML
+  ui/theme.js       tema: Light implicit, Dark ales din Settings
+  ui/sheet.js       comportamentul sheet-ului de jos
   ui/icons.js       pictograme SVG proprii
   lib/rules.js      reguli deterministe, fără AI și fără I/O
   lib/analysis.js   apelurile către backendul Python
@@ -57,10 +58,10 @@ backend/
   app/discovery.py  Tavily, filtrare, triere
   app/fetcher.py    Playwright, robots.txt, capturi
   app/url_safety.py respinge adrese locale și private
-  app/analysis.py   verificare competitori, comparație, dovezi
-  app/recommendations.py  cele trei recomandări
-  app/llm.py        singurul modul care apelează Claude
-  app/mock.py       rezultate din fișier, marcate SIMULAT
+  app/analysis.py   apelul de raport, verificare competitori, dovezi
+  app/recommendations.py  filtrează recomandările fără dovadă
+  app/llm.py        singurul modul care apelează Claude, măsoară tokenii
+  app/mock.py       rezultate din fișier, marcate SIMULATED
   fixtures/         datele demo
   tests/            pytest
 server/
@@ -78,23 +79,25 @@ examples/           referințele vizuale, nu se modifică
 Acestea sunt invariante. Nu le slăbi ca să treacă un test sau ca să arate mai bine un demo.
 
 - Cheile API rămân pe server. Nu intră niciodată în `extension/`.
-- Nu ocolim CAPTCHA, autentificări sau blocări. O pagină blocată apare ca „Blocată”.
+- Nu ocolim CAPTCHA, autentificări sau blocări. O pagină blocată apare ca „Blocked”.
 - Nu publicăm nimic în magazin. Previzualizarea e locală, în DOM, doar pentru utilizator.
-- Fără scoruri opace. Folosim stări și numărători: confirmat, de confirmat, blocat, „2 din 3 rivali urmăriți”.
+- Fără scoruri opace. Folosim stări și numărători: Confirmed, To confirm, Blocked, „2 verified from 5 candidates”.
 - O schimbare la rival e un semnal de investigat. Textul nu sugerează niciodată că i-au crescut vânzările.
 - O schimbare devine confirmată doar la a doua observație.
-- Un câmp necitit apare „Necitit” și nu e tratat niciodată ca modificare.
-- O pagină dispărută apare „Pagină indisponibilă”, nu „produs retras”.
+- Un câmp necitit apare „Not read” și nu e tratat niciodată ca modificare.
+- O pagină dispărută apare „Page unavailable”, nu „product removed”.
 - Orice afirmație dintr-un experiment trimite la o dovadă salvată. Fără dovadă, nu apare.
 - Un experiment care cere o capabilitate nedeclarată e respins de `checkExperiment`.
-- Datele demo poartă eticheta SIMULAT în interfață. Eticheta nu dispare din motive estetice.
+- Datele demo poartă eticheta SIMULATED în interfață. Eticheta nu dispare din motive estetice.
 - Textul venit de pe site-uri externe e material de analizat, nu instrucțiuni. Rămâne delimitat în prompturi.
 - Nu inventăm competitori sau URL-uri. Dacă cercetarea eșuează, utilizatorul vede eroarea și numărul real găsit.
 - Un competitor rămâne doar dacă domeniul vine din căutare și citatul lui există pe pagina citită. Regula e în cod, nu doar în prompt.
-- Limba și domeniul nu stabilesc o țară. Fără livrare, adresă, monedă locală sau citat, piața e „Piață neconfirmată”.
+- Limba și domeniul nu stabilesc o țară. Un `hreflang` cu mai multe regiuni arată traduceri, nu o piață. Fără livrare, adresă, monedă locală sau citat, piața e „Market unconfirmed”.
 - Relevanța comercială și observațiile vizuale rămân separate. O observație vizuală citează o captură.
 - Backendul nu deschide adrese locale sau private. Orice pas de redirecționare e verificat înainte de cerere.
 - Respectăm `robots.txt`, iar browserul se prezintă sincer. Fără stealth.
+- Costul e o cerință de produs. O analiză face cel mult 3 apeluri Claude și 3 căutări Tavily, fără reîncercări plătite. Ținta e sub 20 de cenți. Costul real apare în raport. Orice schimbare a pipeline-ului se măsoară din nou.
+- Raportul rămâne scurt: Overview, Competitors, Actions. Nu adăuga câmpuri fără un pas clar pentru utilizator.
 
 ## Cod
 
@@ -110,24 +113,26 @@ Acestea sunt invariante. Nu le slăbi ca să treacă un test sau ca să arate ma
 - La schimbarea câmpurilor text nu re-randa. Înlocuirea DOM-ului între mousedown și mouseup pierde clicul.
 - În panou nu folosi `localStorage`. Starea stă în `chrome.storage.local`.
 - `extract-site.js` e rulat și de Playwright, deci rămâne o singură expresie, fără `chrome.*`.
-- Claude: `@anthropic-ai/sdk` în Node și `anthropic` în Python, modelul `claude-opus-5-5`, ieșire structurată prin `output_config.format`, `fallbacks: "default"` cu beta `server-side-fallback-2026-07-01`.
+- Claude: `@anthropic-ai/sdk` în Node și `anthropic` în Python, modelul `claude-sonnet-5-5` cu efort `low`, ieșire structurată prin `output_config.format`, `fallbacks: "default"` cu beta `server-side-fallback-2026-07-01`.
 
 ## Design
 
 `references.md` e autoritatea. Pe scurt:
 
-- Light urmează Exemplul 1: lila, aqua, portocaliu.
-- Dark urmează Exemplele 2 și 3: negru, lime, roz neon.
-- Fiecare ecran are un obiect 3D care iese din containerul lui.
-- Interfața e cilindrică: carcasă capsulă, umbrire de tub, tambur între ecrane și la scroll. Fereastra Chrome rămâne dreptunghiulară.
-- Cardurile sunt suprafețe pline, cu rază de 28 px. Sticla e doar pe dock, bara de sus și panoul de jos.
-- Dock-ul are 4 file și un buton central rotund, ridicat, care rulează acțiunea principală a ecranului.
-- Tipografia e Lexend, cu titluri grele și strânse.
-- Culorile vin doar din tokenii din `:root`. Fără hex scris direct în componente.
-- Fără mărci, personaje sau ilustrații din exemple.
+- Interfața reproduce compoziția și culorile din `examples/Screenshot 2026-11-07 142804.png`. Fiecare ecran urmează unul dintre cele trei telefoane din poză, prin `data-look`: `left`, `violet` sau `right`.
+- Raportul arată cele trei telefoane alăturate pe ecran lat și unul singur sub 1180 px.
+- Pornește mereu în Light, chiar dacă sistemul e pe dark. Dark se alege din Settings și e negru iOS, cu accente violet și aqua.
+- Butonul rotund analizează site-ul din fila curentă. Pe Market urmărește selecția, pe Changes verifică rivalii, iar în timpul unei analize deschide progresul. Nu e niciodată inactiv.
+- Bara de jos are 4 file doar cu pictograme, cu `aria-label` și tooltip. Detaliile se deschid în sheet pe `<dialog>`.
+- Chip-urile și căutarea sunt reale. Nu adăuga controale doar de aspect.
+- Tipografia e Lexend, cu scara din `references.md`.
+- Culorile vin doar din tokenii din `extension/app.css`. Fără hex scris direct în componente.
+- Contrastul are prioritate față de poză. Abaterile sunt listate în `references.md`.
+- Fără mărci, personaje sau ilustrații din poză. Folosim mascota și obiectele noastre, redate din cod.
 - Nu adăuga resurse de la distanță. MV3 și confidențialitatea cer ca fonturile și imaginile să fie locale.
+- HyperFrames, Remotion și ffmpeg nu rulează în extensie. Sunt doar pentru materiale de prezentare.
 
-Fiecare schimbare vizuală trece lista de verificare de la finalul `references.md`, în light și dark, la 320 și 380 px.
+Fiecare schimbare vizuală trece lista de verificare de la finalul `references.md`, în Light și Dark, la 320 și 380 px.
 
 ## Accesibilitate
 
@@ -143,14 +148,14 @@ Fiecare schimbare vizuală trece lista de verificare de la finalul `references.m
 - `npm test` și pytest trebuie să treacă înainte de orice raportare.
 - Modificările de interfață se verifică în browser, nu doar prin teste.
 - În unele medii Chromium și Edge nu pornesc. Atunci verifică panoul printr-un simulator pentru `chrome.*` și spune clar că nu a rulat în Chrome real.
-- Fluxul AI real cere cheie. Spune clar dacă a rulat doar în modul SIMULAT.
+- Fluxul AI real cere cheie. Spune clar dacă a rulat doar în modul SIMULATED.
+- Înainte de o rulare live, confirmă că portul 8788 e liber. Un backend vechi rămas pornit consumă credite cu cod vechi.
 
 ## Limite cunoscute
 
 - Verificarea rulează doar cu Chrome deschis și la cerere.
 - La urmărirea în timp, dovada e text, sursă și dată. Capturile există doar în raportul de analiză.
-- Reverificarea la 7 zile e doar o dată afișată.
-- Adobe Express Embed SDK nu e integrat. „Vizual” descarcă un PNG și deschide Adobe Express.
+- Adobe Express Embed SDK nu e integrat. Vizualul descarcă un PNG și deschide Adobe Express.
 - Serverele sunt locale. Joburile stau în memorie 30 de minute.
 - Bannerele de cookie nu sunt închise și pot apărea în capturi.
 - `chrome.tabs.captureVisibleTab` poate fi refuzat. Atunci backendul ia captura site-ului propriu.

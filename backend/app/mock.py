@@ -1,4 +1,4 @@
-"""Fixture results for local UI work. Kept apart from live code and always labelled SIMULAT."""
+"""Fixture results for local UI work. Kept apart from live code and always labelled SIMULATED."""
 
 import json
 import time
@@ -27,7 +27,7 @@ def run_mock(store: JobStore, job: Job) -> None:
     if override and override.country_code and fixture.market:
         fixture.market.country_code = override.country_code.upper()
         fixture.market.status = "corrected"
-        fixture.market.note = "Piață corectată de tine."
+        fixture.market.note = "Market corrected by you."
     for step in job.steps:
         store.set_step(job, step.id, "running")
         time.sleep(STEP_DELAY_SECONDS)
@@ -35,7 +35,7 @@ def run_mock(store: JobStore, job: Job) -> None:
 
     def finish(target: Job) -> None:
         target.result = fixture
-        target.warnings.append("Date SIMULAT din fișier local. Nu au fost contactate site-uri reale.")
+        target.warnings.append("SIMULATED data from a local file. No real sites were contacted.")
         target.status = "done"
 
     store.update(job, finish)

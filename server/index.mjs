@@ -1,13 +1,13 @@
 import http from 'node:http';
-import { aiEnabled, discoverCandidates, proposeExperiment } from './ai.mjs';
-import { discoveryMode, experimentMode, simulatedCandidates, simulatedExperiment } from './simulated.mjs';
+import { aiEnabled, proposeExperiment } from './ai.mjs';
+import { experimentMode, simulatedExperiment } from './simulated.mjs';
 import { getPhase, renderDemo, setPhase } from './demo.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = '127.0.0.1';
 const BASE = `http://localhost:${PORT}`;
 const MAX_BODY_BYTES = 1_000_000;
-const NO_KEY_ERROR = 'Lipsește ANTHROPIC_API_KEY din .env. Pentru un site real nu arătăm rezultate simulate.';
+const NO_KEY_ERROR = 'ANTHROPIC_API_KEY is missing from .env. Real sites never get simulated results.';
 
 function readJson(request) {
   return new Promise((resolve, reject) => {
@@ -16,7 +16,7 @@ function readJson(request) {
     request.on('data', (chunk) => {
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
-        reject(Object.assign(new Error('Cerere prea mare.'), { status: 413 }));
+        reject(Object.assign(new Error('Request too large.'), { status: 413 }));
         request.destroy();
         return;
       }
@@ -26,7 +26,7 @@ function readJson(request) {
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
       } catch {
-        reject(Object.assign(new Error('JSON invalid.'), { status: 400 }));
+        reject(Object.assign(new Error('Invalid JSON.'), { status: 400 }));
       }
     });
     request.on('error', reject);
@@ -51,27 +51,17 @@ async function handleApi(request, response, path) {
   if (path === '/api/status' && request.method === 'GET') {
     return send(response, 200, { ai: aiEnabled() });
   }
-  if (path === '/api/discover' && request.method === 'POST') {
-    const body = await readJson(request);
-    if (!body.own?.name) return send(response, 400, { error: 'Lipsește produsul.' });
-    const mode = discoveryMode(body.own.url, aiEnabled());
-    if (mode === 'unavailable') return send(response, 503, { error: NO_KEY_ERROR });
-    if (mode === 'live') {
-      return send(response, 200, { label: 'LIVE', candidates: await discoverCandidates(body) });
-    }
-    return send(response, 200, { label: 'SIMULAT', candidates: simulatedCandidates(BASE) });
-  }
   if (path === '/api/experiment' && request.method === 'POST') {
     const body = await readJson(request);
-    if (!body.evidence?.length) return send(response, 400, { error: 'Lipsesc dovezile.' });
+    if (!body.evidence?.length) return send(response, 400, { error: 'Evidence is missing.' });
     const mode = experimentMode(body.evidence, aiEnabled());
     if (mode === 'unavailable') return send(response, 503, { error: NO_KEY_ERROR });
     if (mode === 'live') {
       return send(response, 200, { label: 'LIVE', experiment: await proposeExperiment(body) });
     }
-    return send(response, 200, { label: 'SIMULAT', experiment: simulatedExperiment(body) });
+    return send(response, 200, { label: 'SIMULATED', experiment: simulatedExperiment(body) });
   }
-  return send(response, 404, { error: 'Rută necunoscută.' });
+  return send(response, 404, { error: 'Unknown route.' });
 }
 
 const server = http.createServer(async (request, response) => {
@@ -91,15 +81,15 @@ const server = http.createServer(async (request, response) => {
       const page = renderDemo(pathname === '/' ? '/demo/control' : pathname);
       return send(response, page.status, page.html, 'text/html; charset=utf-8');
     }
-    return send(response, 404, { error: 'Rută necunoscută.' });
+    return send(response, 404, { error: 'Unknown route.' });
   } catch (error) {
     console.error(error);
     if (!response.headersSent) {
-      send(response, error.status ?? 502, { error: error.status ? error.message : 'Serviciul AI nu a răspuns.' });
+      send(response, error.status ?? 502, { error: error.status ? error.message : 'Claude did not respond.' });
     }
   }
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Distinct Watch: ${BASE}/demo/control (AI: ${aiEnabled() ? 'LIVE' : 'SIMULAT'})`);
+  console.log(`Distinct Watch: ${BASE}/demo/control (AI: ${aiEnabled() ? 'LIVE' : 'SIMULATED'})`);
 });

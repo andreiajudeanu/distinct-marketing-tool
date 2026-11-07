@@ -63,7 +63,6 @@
     lang: document.documentElement.lang ?? '',
     httpStatus: navigation?.responseStatus ?? 0,
     challenge: !product && CHALLENGE.test(`${document.title} ${bodyText}`),
-    sellerMentions: blocks.filter((text) => /vândut de|vandut de|sold by/i.test(text)).length,
     shipsTo: destinations,
     product: {
       name: product?.name || meta('og:title') || document.querySelector('h1')?.innerText || '',

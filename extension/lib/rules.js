@@ -1,24 +1,19 @@
 // Deterministic rules shared by the extension and the tests. No AI and no I/O here.
 
-export const MARKETPLACE_DOMAINS = [
-  'emag.ro', 'amazon.', 'ebay.', 'etsy.com', 'aliexpress.', 'temu.com',
-  'okazii.ro', 'allegro.', 'trendyol.', 'walmart.com',
-];
-
 export const CHANGE_LABELS = {
-  price: 'Preț',
-  discount: 'Reducere',
-  bundle_sample: 'Pachet sau mostră',
-  shipping: 'Livrare',
-  returns: 'Retur sau garanție',
-  stock: 'Stoc',
-  message: 'Mesaj principal',
+  price: 'Price',
+  discount: 'Discount',
+  bundle_sample: 'Bundle or sample',
+  shipping: 'Shipping',
+  returns: 'Returns or warranty',
+  stock: 'Stock',
+  message: 'Main message',
 };
 
 export const CAPABILITY_LABELS = {
-  samples: 'mostre',
-  bundles: 'pachete',
-  freeShipping: 'livrare gratuită',
+  samples: 'samples',
+  bundles: 'bundles',
+  freeShipping: 'free shipping',
 };
 
 const CURRENCIES = [
@@ -59,7 +54,6 @@ export function makeSnapshot(raw, capturedAt = null) {
     status,
     lang: (raw.lang ?? '').slice(0, 2).toLowerCase(),
     shipsTo: raw.shipsTo ?? [],
-    sellerMentions: raw.sellerMentions ?? 0,
     product: {
       name: product.name ?? '',
       category: product.category ?? '',
@@ -69,77 +63,6 @@ export function makeSnapshot(raw, capturedAt = null) {
     },
     offers: [...new Set((raw.offers ?? []).map((text) => text.trim()).filter(Boolean))],
   };
-}
-
-function stem(word) {
-  return word.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, 6);
-}
-
-function tokens(text) {
-  return new Set((text.match(/\p{L}{4,}/gu) ?? []).map(stem));
-}
-
-function sameProductType(snapshot, own) {
-  const theirs = snapshot.product.category;
-  if (theirs && own.category) return stem(theirs) === stem(own.category);
-  const ownTokens = tokens(own.name);
-  return [...tokens(snapshot.product.name)].some((token) => ownTokens.has(token));
-}
-
-function isMarketplace(snapshot) {
-  let host = '';
-  try {
-    host = new URL(snapshot.url).hostname;
-  } catch {
-    return false;
-  }
-  return snapshot.sellerMentions >= 2 || MARKETPLACE_DOMAINS.some((domain) => host.includes(domain));
-}
-
-function criterion(name, state, evidence) {
-  return { criterion: name, state, evidence };
-}
-
-export function classifyCandidate(snapshot, own) {
-  const price = snapshot.product.price;
-  const ownPrice = own.price;
-  const market = own.market ?? {};
-  const typeOk = sameProductType(snapshot, own);
-  const reasons = [
-    criterion('tip de produs', typeOk ? 'ok' : 'fail',
-      snapshot.product.category || snapshot.product.name || 'necitit'),
-  ];
-
-  let priceState = 'unknown';
-  if (price && ownPrice && price.currency === ownPrice.currency) {
-    const ratio = price.amount / ownPrice.amount;
-    priceState = ratio >= 0.5 && ratio <= 1.5 ? 'ok' : 'fail';
-  }
-  reasons.push(criterion('preț', priceState, formatPrice(price) ?? 'necitit'));
-
-  let currencyState = 'unknown';
-  if (price?.currency && ownPrice?.currency) {
-    currencyState = price.currency === ownPrice.currency ? 'ok' : 'fail';
-  }
-  reasons.push(criterion('monedă', currencyState, price?.currency ?? 'necitită'));
-
-  let langState = 'unknown';
-  if (snapshot.lang && market.lang) langState = snapshot.lang === market.lang ? 'ok' : 'fail';
-  reasons.push(criterion('limbă', langState, snapshot.lang || 'necitită'));
-
-  let shipsState = 'unknown';
-  if (snapshot.shipsTo.length && market.country) {
-    shipsState = snapshot.shipsTo.includes(market.country) ? 'ok' : 'fail';
-  }
-  reasons.push(criterion('livrare în piața ta', shipsState, snapshot.shipsTo.join(', ') || 'necitită'));
-
-  let status = 'rival';
-  if (isMarketplace(snapshot)) status = 'marketplace';
-  else if (!typeOk) status = 'not_comparable';
-  else if ([currencyState, langState, shipsState].includes('fail')) status = 'other_market';
-  else if ([currencyState, langState, priceState].includes('unknown')) status = 'unconfirmed_market';
-  else if (priceState === 'fail') status = 'not_comparable';
-  return { status, reasons };
 }
 
 export function classifyOffer(text) {
@@ -172,7 +95,7 @@ export function diffSnapshots(previous, next) {
   const after = next.product;
 
   if (before.price && !after.price) {
-    unread.push('preț');
+    unread.push('price');
   } else if (before.price && after.price &&
     (before.price.amount !== after.price.amount || before.price.currency !== after.price.currency)) {
     const text = formatPrice(after.price);
@@ -180,7 +103,7 @@ export function diffSnapshots(previous, next) {
   }
 
   if (before.availability && !after.availability) {
-    unread.push('stoc');
+    unread.push('stock');
   } else if (before.availability && after.availability !== before.availability) {
     changes.push(change('stock', after.availability, before.availability, after.availability, next.url));
   }
@@ -190,7 +113,7 @@ export function diffSnapshots(previous, next) {
   }
 
   if (previous.offers.length && !next.offers.length) {
-    unread.push('ofertă');
+    unread.push('offer');
   } else {
     const oldOffers = new Map(previous.offers.map((text) => [offerKey(text), text]));
     const newOffers = new Map(next.offers.map((text) => [offerKey(text), text]));
@@ -248,18 +171,18 @@ export function checkExperiment(experiment, capabilities, evidenceIds) {
   const errors = [];
   for (const need of experiment.requires ?? []) {
     if (!capabilities[need]) {
-      errors.push(`Cere ${CAPABILITY_LABELS[need] ?? need}, pe care nu le-ai declarat.`);
+      errors.push(`It needs ${CAPABILITY_LABELS[need] ?? need}, which you have not declared.`);
     }
   }
   const discount = experiment.discountPct ?? 0;
   if (discount > (capabilities.maxDiscountPct ?? 0)) {
-    errors.push(`Reducerea de ${discount}% depășește limita ta de ${capabilities.maxDiscountPct ?? 0}%.`);
+    errors.push(`A ${discount}% discount is above your ${capabilities.maxDiscountPct ?? 0}% limit.`);
   }
   const claims = experiment.claims ?? [];
-  if (!claims.length) errors.push('Experimentul nu are nicio afirmație cu dovadă.');
+  if (!claims.length) errors.push('This test has no claim backed by evidence.');
   for (const claim of claims) {
     if (!evidenceIds.includes(claim.evidenceId)) {
-      errors.push(`Afirmație fără dovadă salvată: „${claim.text}”.`);
+      errors.push(`Claim without saved evidence: "${claim.text}".`);
     }
   }
   return { ok: errors.length === 0, errors };

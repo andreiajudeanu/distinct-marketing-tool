@@ -1,46 +1,62 @@
 import { CHANGE_LABELS } from '../lib/rules.js';
 import { icon } from './icons.js';
+import { APPEARANCES } from './theme.js';
 
 export const TABS = [
-  { id: 'product', label: 'Produs', icon: 'bag' },
-  { id: 'market', label: 'Piață', icon: 'radar' },
-  { id: 'changes', label: 'Schimbări', icon: 'pulse' },
-  { id: 'experiments', label: 'Teste', icon: 'flask' },
+  { id: 'home', label: 'Home', icon: 'home' },
+  { id: 'market', label: 'Market', icon: 'market' },
+  { id: 'changes', label: 'Changes', icon: 'changes' },
+  { id: 'tests', label: 'Tests', icon: 'tests' },
 ];
 
-export const TITLES = {
-  product: 'Produsul tău',
-  market: 'Piața ta',
-  changes: 'Schimbări',
-  experiments: 'Experimente',
+const RIVAL_STATUS = {
+  blocked: ['Blocked', 'bad', 'lock'],
+  unavailable: ['Page unavailable', 'bad', 'alert'],
 };
 
-const STATUS = {
-  rival: ['Rival comparabil', 'ok', 'check'],
-  marketplace: ['Reper de piață', 'warn', 'tag'],
-  other_market: ['Altă piață', 'warn', 'radar'],
-  unconfirmed_market: ['Piață neconfirmată', 'warn', 'alert'],
-  not_comparable: ['Necomparabil', 'bad', 'close'],
-  blocked: ['Blocată', 'bad', 'lock'],
-  unavailable: ['Pagină indisponibilă', 'bad', 'alert'],
+const CHANGE_TILES = {
+  price: 'tile-orange',
+  discount: 'tile-orange',
+  bundle_sample: 'tile-lilac',
+  shipping: 'tile-chart',
+  returns: 'tile-yellow',
+  stock: 'tile-blue',
+  message: 'tile-chat',
 };
 
-const CHANGE_ICONS = {
-  price: 'tag',
-  discount: 'percent',
-  bundle_sample: 'gift',
-  shipping: 'truck',
-  returns: 'shield',
-  stock: 'box',
-  message: 'text',
+const STEP_STATES = {
+  pending: ['clock', 'Waiting'],
+  running: ['', 'Working'],
+  done: ['check', 'Done'],
+  failed: ['close', 'Failed'],
+  skipped: ['minus', 'Skipped'],
 };
+
+const ANALYSIS_STATUS = {
+  queued: ['Waiting', '', 'clock'],
+  running: ['Working', '', 'clock'],
+  done: ['Ready', 'ok', 'check'],
+  partial: ['Partial result', 'warn', 'alert'],
+  failed: ['Failed', 'bad', 'close'],
+  expired: ['Expired', 'warn', 'clock'],
+};
+
+const CATEGORY_LABELS = { direct: 'Direct', indirect: 'Indirect', visual_reference: 'Visual' };
+
+const CATEGORY_CHIPS = [
+  { id: 'direct', label: 'Direct', tone: 'aqua' },
+  { id: 'indirect', label: 'Indirect', tone: 'pink' },
+  { id: 'visual_reference', label: 'Visual', tone: 'orange' },
+];
+
+const FINISHED = new Set(['done', 'partial', 'failed', 'expired']);
 
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
-export const when = (iso) => (iso ? new Date(iso).toLocaleString('ro-RO', {
+export const when = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', {
   day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-}) : 'niciodată');
+}) : 'never');
 
 export const safeUrl = (url) => (/^https?:\/\//.test(url) ? esc(url) : '#');
 
@@ -52,419 +68,443 @@ export const host = (url) => {
   }
 };
 
-const dataLabel = (url) => (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(url) ? 'SIMULAT' : 'LIVE');
+const dataLabel = (url) => (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(url) ? 'SIMULATED' : 'LIVE');
 
 export const pill = (text, kind = '', iconName = '') =>
   `<span class="pill ${kind}">${iconName ? icon(iconName) : ''}${esc(text)}</span>`;
 
-const statusPill = (status) => {
-  const [text, kind, iconName] = STATUS[status] ?? [status, '', ''];
-  return pill(text, kind, iconName);
-};
-
 export const external = (url, text) =>
-  `<a class="link" href="${safeUrl(url)}" target="_blank" rel="noreferrer">${icon('link')}<span>${esc(text)}</span></a>`;
+  `<a class="link" href="${safeUrl(url)}" target="_blank" rel="noreferrer"><span>${esc(text)}</span>${icon('link')}</a>`;
 
-const object3d = (name, className = '') =>
-  `<img class="object ${className}" src="assets/3d/${name}.webp" alt="" width="420" height="420" draggable="false">`;
+export const object3d = (name, className = '') =>
+  `<img class="${className}" src="assets/3d/${name}.webp" alt="" width="420" height="420" draggable="false">`;
 
-export function button(ui, { action, label, kind = 'tinted', iconName, data = {}, disabled = false, wide = false }) {
+export function primaryButton(ui, { action, label, kind = 'primary', iconName, data = {}, disabled = false }) {
   const attrs = Object.entries(data).map(([key, value]) => `data-${key}="${esc(value)}"`).join(' ');
   const loading = ui.busy === action;
-  return `<button type="button" class="btn ${kind} ${wide ? 'wide' : ''}" data-action="${action}" ${attrs}
+  return `<button type="button" class="btn ${kind}" data-action="${action}" ${attrs}
     ${disabled || ui.busy ? 'disabled' : ''} ${loading ? 'aria-busy="true"' : ''}>
     ${loading ? '<span class="spinner" aria-hidden="true"></span>' : iconName ? icon(iconName) : ''}<span>${esc(label)}</span>
   </button>`;
 }
 
-function ringButton(ui, action, label) {
-  const loading = ui.busy === action;
-  return `<button type="button" class="ring-cta" data-action="${action}" ${ui.busy ? 'disabled' : ''} ${loading ? 'aria-busy="true"' : ''}>
-    <span class="ring"><svg viewBox="0 0 72 72" aria-hidden="true"><circle cx="36" cy="36" r="33"/></svg>
-      <span class="ring-core">${loading ? '<span class="spinner" aria-hidden="true"></span>' : icon('chevron')}</span></span>
-    <span>${esc(label)}</span>
+export function stageView() {
+  return `<div class="stage" aria-hidden="true">
+    ${object3d('mascot', 'stage-mascot')}
+    ${object3d('tile-chart', 'stage-float float-a')}
+    ${object3d('tile-doc', 'stage-float float-b')}
+    ${object3d('tile-dots', 'stage-float float-c')}
+    ${object3d('tile-chat', 'stage-float float-d')}
+    <span class="stage-plus plus-a">${icon('plus')}</span>
+    <span class="stage-plus plus-b">${icon('plus')}</span>
+    <span class="stage-plus plus-c">${icon('plus')}</span>
+  </div>`;
+}
+
+export function aquaCard(title) {
+  return `<section class="aqua-card"><h1>${esc(title)}</h1>${object3d('lens', 'aqua-object')}</section>`;
+}
+
+export function miniTiles() {
+  return `<div class="mini-tiles" aria-hidden="true">
+    ${['tile-orange', 'tile-blue', 'tile-yellow', 'tile-lilac'].map((name) => object3d(name)).join('')}
+  </div>`;
+}
+
+export function lilacHero(object, compact = false) {
+  return `<section class="hero" aria-hidden="true">
+    ${object3d('cloud', 'hero-cloud cloud-c')}
+    ${object3d(object, `hero-object ${compact ? 'compact' : ''}`)}
+    ${object3d('cloud', 'hero-cloud cloud-a')}
+    ${object3d('cloud', 'hero-cloud cloud-b')}
+  </section>`;
+}
+
+export function tileCard({ tile, title, value = '', sub = '', attrs = '' }) {
+  return `<button type="button" class="tcard" ${attrs}>
+    ${object3d(tile, 'tile-object')}
+    <strong>${esc(title)}</strong>
+    ${sub ? `<span class="sub">${esc(sub)}</span>` : ''}
+    ${value ? `<span class="price">${esc(value)}</span>` : ''}
   </button>`;
 }
 
-export function hero({ tone, object, lines, sub, cta = '' }) {
-  const title = lines.map(esc).join('<br>');
-  return `<section class="hero hero-${tone}" data-tilt>
-    ${object3d('spark', 'deco deco-a')}
-    <span class="plus plus-a" aria-hidden="true">${icon('plus')}</span>
-    <span class="plus plus-b" aria-hidden="true">${icon('plus')}</span>
-    ${object3d(object, 'hero-object')}
-    <h1>${title}</h1>
-    <p>${esc(sub)}</p>
-    ${cta}
-  </section>`;
+export function chipButton({ id, label, tone }, selected, attribute) {
+  return `<button type="button" class="chip ${tone}" data-${attribute}="${esc(id)}" aria-pressed="${id === selected}">${esc(label)}</button>`;
 }
 
 export function emptyState(title, body) {
-  return `<div class="empty">${object3d('bot', 'empty-object')}
+  return `<div class="empty">
+    ${object3d('bot', 'empty-object')}
     <h2>${esc(title)}</h2><p>${esc(body)}</p></div>`;
 }
 
-export function group(title, rows, footer = '') {
-  return `<section class="group-wrap">
-    ${title ? `<h2 class="group-title">${esc(title)}</h2>` : ''}
-    <div class="surface group">${rows}</div>
-    ${footer ? `<p class="group-footer">${esc(footer)}</p>` : ''}
+export function section(title, rows, footer = '') {
+  return `<section class="section">
+    ${title ? `<h2 class="section-title">${esc(title)}</h2>` : ''}
+    <div class="group">${rows}</div>
+    ${footer ? `<p class="section-footer">${esc(footer)}</p>` : ''}
   </section>`;
 }
 
-function textRow(own, name, label) {
-  return `<label class="row"><span>${label}</span>
-    <input type="text" data-own="${name}" value="${esc(own[name])}" autocomplete="off"></label>`;
+export function chevronRow({ action, title, sub = '', iconName, tone = '', value = '', data = {} }) {
+  const attrs = Object.entries(data).map(([key, item]) => `data-${key}="${esc(item)}"`).join(' ');
+  return `<button type="button" class="row-button" data-action="${action}" ${attrs}>
+    ${iconName ? `<span class="tile ${tone}">${icon(iconName)}</span>` : ''}
+    <span class="row-main"><strong>${esc(title)}</strong>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</span>
+    ${value ? `<span class="row-value">${esc(value)}</span>` : ''}
+    <span class="row-chevron">${icon('chevron')}</span>
+  </button>`;
 }
 
-function numberRow(caps, name, label, unit = '') {
-  return `<label class="row"><span>${label}</span>
-    <span class="field"><input type="number" min="0" inputmode="decimal" data-cap="${name}" value="${esc(caps[name])}" placeholder="0">
-    ${unit ? `<span class="unit">${unit}</span>` : ''}</span></label>`;
+export function avatar(title) {
+  const letter = (title || '?').trim().charAt(0).toUpperCase();
+  return `<span class="avatar" aria-hidden="true">${esc(letter)}</span>`;
 }
 
-function switchRow(caps, name, label, iconName, tone) {
-  return `<label class="row switch-row"><span class="row-label"><span class="tile tone-${tone}">${icon(iconName)}</span>${label}</span>
-    <input class="switch" type="checkbox" role="switch" data-cap="${name}" ${caps[name] ? 'checked' : ''}></label>`;
+export function segmented(items, selected, attribute, label) {
+  const buttons = items.map((item) => `<button type="button" data-${attribute}="${esc(item.id)}"
+    aria-pressed="${item.id === selected}">${esc(item.label)}</button>`).join('');
+  return `<div class="segmented" role="group" aria-label="${esc(label)}">${buttons}</div>`;
 }
 
-const STEP_STATES = {
-  pending: ['clock', 'În așteptare'],
-  running: ['', 'În lucru'],
-  done: ['check', 'Gata'],
-  failed: ['close', 'Eșuat'],
-  skipped: ['minus', 'Omis'],
-};
+export function sheetFrame(title, body, actions = '') {
+  return `<button type="button" class="grabber" aria-label="Drag to resize or close"></button>
+    <header class="sheet-head">
+      <h2 id="sheet-title">${esc(title)}</h2>
+      <button type="button" class="text-button" data-action="close-sheet">Done</button>
+    </header>
+    <div class="sheet-body">${body}</div>
+    ${actions ? `<div class="sheet-actions">${actions}</div>` : ''}`;
+}
 
 export function stepsView(steps) {
   const rows = steps.map((step) => {
     const [iconName, text] = STEP_STATES[step.state] ?? STEP_STATES.pending;
     const mark = iconName ? icon(iconName) : '<span class="spinner" aria-hidden="true"></span>';
     return `<li class="step ${esc(step.state)}">${mark}
-      <span class="step-text"><strong>${esc(step.label)}</strong>
+      <span class="step-text"><span>${esc(step.label)}</span>
       <span class="sub">${esc(step.detail || text)}</span></span></li>`;
   }).join('');
   return `<ol class="steps">${rows}</ol>`;
 }
-
-const ANALYSIS_STATUS = {
-  queued: ['În așteptare', '', 'clock'],
-  running: ['În lucru', '', 'clock'],
-  done: ['Gata', 'ok', 'check'],
-  partial: ['Rezultat parțial', 'warn', 'alert'],
-  failed: ['Eșuat', 'bad', 'close'],
-  expired: ['Expirată', 'warn', 'clock'],
-};
 
 export const analysisPill = (status) => {
   const [text, kind, iconName] = ANALYSIS_STATUS[status] ?? [status, '', ''];
   return pill(text, kind, iconName);
 };
 
-function analysisCard(analysis) {
-  if (!analysis) return '';
+export function analysisCard(analysis) {
+  if (!analysis) return '<div id="analysis-card"></div>';
   const notes = (analysis.errors ?? []).map((error) =>
     `<p class="banner">${icon('alert')}<span>${esc(error.message)}</span></p>`).join('');
-  const labelPill = analysis.label ? pill(analysis.label) : '';
-  const running = ['queued', 'running'].includes(analysis.status);
-  return `<section id="analysis-card" class="surface card" aria-live="polite">
-    <header class="card-head"><span class="tile tone-aqua">${icon('radar')}</span>
-      <div class="row-main"><strong>Analiza site-ului</strong><span class="sub">${esc(host(analysis.url))}</span></div></header>
-    <div class="pills">${analysisPill(analysis.status)}${labelPill}</div>
-    ${notes}${running ? stepsView(analysis.steps ?? []) : ''}
-  </section>`;
+  const running = !FINISHED.has(analysis.status);
+  if (!running && !notes) return '<div id="analysis-card"></div>';
+  return `<section id="analysis-card" aria-live="polite">${notes}${running ? stepsView(analysis.steps ?? []) : ''}</section>`;
 }
 
-export const updateAnalysisCard = analysisCard;
+const isFinishedAnalysis = (analysis) => Boolean(analysis) && FINISHED.has(analysis.status);
+const isTracked = (state, candidate) => state.rivals.some((rival) => rival.source === candidate.url);
+const pendingCount = (state) => state.candidates.filter((item) => item.selected && !isTracked(state, item)).length;
 
-function intro() {
-  const steps = [
-    ['lens', 'Găsim competitori', 'Automat, cu dovezi'],
-    ['bell', 'Vezi schimbările', 'Cu dovadă înainte/după'],
-    ['flask', 'Propunem un test', 'Doar cu ce poți oferi'],
-  ];
-  return `<section class="intro" aria-label="Cum funcționează">
-    ${steps.map(([object, title, body]) => `<article class="surface intro-card">
-      ${object3d(object, 'intro-object')}<strong>${title}</strong><span class="sub">${body}</span>
-    </article>`).join('')}
-  </section>`;
+// Which screen of the reference picture this tab follows.
+export function lookOf(state, ui) {
+  if (ui.tab === 'market' || ui.tab === 'tests') return 'right';
+  if (ui.tab === 'home' && !isFinishedAnalysis(state.analysis)) return 'violet';
+  return 'left';
 }
 
-function analyzeButton(state, ui) {
-  if (state.analysis) {
-    const running = !['done', 'partial', 'failed', 'expired'].includes(state.analysis.status);
-    return button(ui, { action: 'open-report', label: running ? 'Vezi progresul' : 'Vezi raportul', kind: 'cta', iconName: 'eye' });
+export function primaryAction(state, ui) {
+  const { analysis } = state;
+  const running = analysis && !isFinishedAnalysis(analysis);
+  const main = running
+    ? { action: 'open-report', label: 'View progress', icon: 'report', waiting: false }
+    : { action: 'analyze', label: 'Analyze the site in this tab', icon: 'market', waiting: !analysis };
+  if (ui.tab === 'market' && pendingCount(state)) {
+    return { action: 'track', label: `Track selected (${pendingCount(state)})`, icon: 'check', waiting: true };
   }
-  return button(ui, { action: 'analyze', label: 'Analizează site-ul meu', kind: 'cta', iconName: 'radar' });
-}
-
-function productView(state, ui) {
-  const { own, capabilities: caps } = state;
-  if (!own) {
-    return hero({
-      tone: 'violet',
-      object: 'bag',
-      lines: ['Site-ul', 'tău'],
-      sub: 'Deschide site-ul tău. Citim doar ce e public pe pagină și căutăm singuri competitorii.',
-      cta: analyzeButton(state, ui),
-    }) + analysisCard(state.analysis) + intro();
+  if (ui.tab === 'changes' && state.rivals.length) {
+    return { action: 'check', label: 'Check now', icon: 'refresh', waiting: false };
   }
-  const secondary = state.analysis
-    ? button(ui, { action: 'analyze', label: 'Analizează din nou', kind: 'plain', wide: true })
-    : '';
-  return `
-    ${hero({
-      tone: 'violet',
-      object: 'bag',
-      lines: ['Site-ul', 'tău'],
-      sub: own.name,
-      cta: analyzeButton(state, ui),
-    })}
-    ${analysisCard(state.analysis)}
-    ${secondary}
-    ${group('Ce poți oferi', `${switchRow(caps, 'samples', 'Mostre', 'gift', 'rose')}
-      ${switchRow(caps, 'bundles', 'Pachete', 'box', 'orange')}
-      ${switchRow(caps, 'freeShipping', 'Livrare gratuită', 'truck', 'aqua')}
-      ${numberRow(caps, 'maxDiscountPct', 'Reducere maximă', '%')}`, 'Experimentele folosesc doar ce bifezi aici.')}
-    ${group('Ce am citit', `${textRow(own, 'name', 'Produs')}${textRow(own, 'category', 'Categorie')}
-      ${textRow(own, 'priceAmount', 'Preț')}${textRow(own, 'currency', 'Monedă')}
-      ${textRow(own, 'country', 'Țară')}${textRow(own, 'lang', 'Limbă')}`, 'Corectează orice câmp greșit.')}
-    ${group('Trafic', `${numberRow(caps, 'sessionsPerMonth', 'Sesiuni pe lună')}
-      ${numberRow(caps, 'conversionPct', 'Conversie', '%')}`, 'Opțional. Calculează cât ar dura un test.')}
-    ${button(ui, { action: 'discover', label: 'Caută doar pagini de produs', kind: 'plain', wide: true })}
-    ${button(ui, { action: 'read-own', label: 'Recitește pagina', kind: 'plain', wide: true })}`;
+  return main;
 }
 
-function skeleton(count) {
-  const rows = Array.from({ length: count }, () =>
-    '<div class="skeleton-row"><span class="bone tile"></span><span class="bone line"></span></div>').join('');
-  return `<div class="surface group" role="status" aria-label="Se încarcă">${rows}</div>`;
+export function topLeftAction(state, ui) {
+  if (ui.tab === 'home' && isFinishedAnalysis(state.analysis)) {
+    return { action: 'open-report', label: 'View report', icon: 'report' };
+  }
+  return { action: 'open-offer', label: 'Your offer', icon: 'grid' };
 }
 
-export function avatar(title) {
-  const letter = (title || '?').trim().charAt(0).toUpperCase();
-  const hue = [...(title || '')].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 5;
-  return `<span class="avatar hue-${hue}" aria-hidden="true">${esc(letter)}</span>`;
+export function matchesFilter(item, ui) {
+  const category = item.category ?? 'direct';
+  if (ui.chip && category !== ui.chip) return false;
+  return !ui.query || item.title.toLowerCase().includes(ui.query.trim().toLowerCase());
 }
 
-function candidateRow(item) {
-  return `<div class="row list-row">
-    ${avatar(item.title)}
-    <div class="row-main"><strong>${esc(item.title)}</strong><span class="sub">${esc(item.why)}</span>
-    ${external(item.url, host(item.url))}</div>
-  </div>`;
+function offerSummary(caps) {
+  const count = ['samples', 'bundles', 'freeShipping'].filter((name) => caps[name]).length;
+  return `${count} of 3 on`;
 }
 
-function rivalCard(item, index) {
-  const reasons = item.reasons.map((reason) => `<li class="${reason.state}">
-    ${icon({ ok: 'check', fail: 'close' }[reason.state] ?? 'alert')}
-    <span>${esc(reason.criterion)}: ${esc(reason.evidence)}</span></li>`).join('');
-  return `<article class="surface rival">
-    <div class="rival-head">${avatar(item.title)}
-      <input class="switch" type="checkbox" role="switch" data-select="${index}" ${item.selected ? 'checked' : ''}
-        aria-label="Urmărește ${esc(item.title)}"></div>
-    <strong>${esc(item.title)}</strong>
-    <span class="sub">${esc(host(item.url))}</span>
-    <div class="pills">${statusPill(item.status)}${pill(dataLabel(item.url))}</div>
-    ${reasons ? `<details><summary>${icon('chevron')}De ce?</summary><ul class="reasons">${reasons}</ul></details>` : ''}
-  </article>`;
+function countChanges(state) {
+  return state.rivals.reduce((sum, rival) => sum + rival.pending.length + rival.confirmed.length, 0);
 }
 
-function marketHero(state, ui, sub, cta = '') {
-  return hero({ tone: 'aqua', object: 'lens', lines: ['Piața', 'ta'], sub, cta });
+function homeStart(state) {
+  const { analysis } = state;
+  const running = Boolean(analysis);
+  const text = running ? '' : 'We find your competitors, compare them and show you what to change. Tap the round button to start.';
+  return `<div class="stage-space"></div>
+    ${aquaCard(running ? 'Analyzing your website' : 'Analyze your website')}
+    <div class="on-violet">
+      ${running ? `<div class="pills center top-gap">${analysisPill(analysis.status)}${analysis.label ? pill(analysis.label) : ''}</div>` : ''}
+      ${running ? analysisCard(analysis) : `<p class="lede">${text}</p>`}
+    </div>
+    ${running ? '' : miniTiles()}`;
+}
+
+function homeDone(state) {
+  const { analysis, own } = state;
+  const sub = analysis.status === 'expired'
+    ? 'Your saved report is still available. Open it with the top left button. The round button analyzes the site in this tab.'
+    : 'Your report is ready. Open it with the top left button. The round button analyzes the site in this tab.';
+  const cards = [
+    tileCard({ tile: 'tile-orange', title: 'Competitors', value: `${state.candidates.length} found`, attrs: 'data-tab="market"' }),
+    tileCard({ tile: 'tile-blue', title: 'Changes', value: `${countChanges(state)} to review`, attrs: 'data-tab="changes"' }),
+    tileCard({ tile: 'tile-yellow', title: 'Tests', value: `${state.approved.length} approved`, attrs: 'data-tab="tests"' }),
+    tileCard({ tile: 'tile-lilac', title: 'Your offer', value: offerSummary(state.capabilities), attrs: 'data-action="open-offer"' }),
+  ].join('');
+  return `${lilacHero('rocket')}
+    <h1 class="screen-title">${esc(own?.name || host(analysis.url))}</h1>
+    <p class="screen-sub">${esc(sub)}</p>
+    ${analysisCard(analysis)}
+    <div class="stagger">${cards}</div>`;
+}
+
+function homeView(state) {
+  return isFinishedAnalysis(state.analysis) ? homeDone(state) : homeStart(state);
+}
+
+function competitorCard(state, item, index, ui) {
+  const tone = index % 2 ? 'aqua' : 'violet';
+  const tile = index % 2 ? 'tile-yellow' : 'tile-lilac';
+  const category = CATEGORY_LABELS[item.category] ?? 'Direct';
+  const hidden = matchesFilter(item, ui) ? '' : ' hidden';
+  const body = `${object3d(tile, 'tile-object')}<strong>${esc(item.title)}</strong>`;
+  if (isTracked(state, item)) {
+    return `<article class="pcard ${tone}" data-card="${index}"${hidden}>${body}
+      <span class="pcard-note">${esc(category)} · Tracking</span></article>`;
+  }
+  return `<label class="pcard ${tone}" data-card="${index}"${hidden}>
+    <input class="visually-hidden" type="checkbox" role="switch" data-select="${index}" ${item.selected ? 'checked' : ''} aria-label="Track ${esc(item.title)}">
+    ${body}<span class="pcard-note">${esc(category)} · ${item.selected ? 'Selected' : 'Tap to select'}</span></label>`;
 }
 
 function marketView(state, ui) {
-  if (ui.busy === 'discover' || ui.busy === 'read-candidates') {
-    const text = ui.busy === 'discover' ? 'Caut pagini comparabile.' : 'Citesc paginile candidaților.';
-    return `${marketHero(state, ui, text)}${skeleton(4)}`;
-  }
-  if (!state.candidates.length) {
-    return `${marketHero(state, ui, 'Găsim magazine comparabile și îți arătăm de ce.')}
-      ${emptyState('Încă nu urmărești piața', 'Pornește din ecranul Produs.')}`;
-  }
-  if (!state.classified.length) {
-    return `${marketHero(state, ui, `${state.candidates.length} pagini găsite. Chrome îți poate cere permisiunea.`,
-      button(ui, { action: 'read-candidates', label: 'Citește paginile', kind: 'cta', iconName: 'eye' }))}
-      <div class="pills centered">${pill(state.discoveryLabel)}</div>
-      ${group('Candidați', state.candidates.map(candidateRow).join(''))}`;
-  }
-  const indexed = state.classified.map((item, index) => ({ item, index }));
-  const cards = (list) => `<div class="rival-grid">${list.map(({ item, index }) => rivalCard(item, index)).join('')}</div>`;
-  const rivals = indexed.filter(({ item }) => item.status === 'rival');
-  const others = indexed.filter(({ item }) => item.status !== 'rival');
-  const selected = state.classified.filter((item) => item.selected).length;
-  return `
-    ${marketHero(state, ui, `${rivals.length} rivali comparabili, ${others.length} repere sau pagini excluse.`,
-      button(ui, { action: 'track', label: `Urmărește selecția (${selected})`, kind: 'cta', iconName: 'check', disabled: !selected }))}
-    ${rivals.length ? `<section class="group-wrap"><h2 class="group-title">Rivali comparabili</h2>${cards(rivals)}</section>` : ''}
-    ${others.length ? `<section class="group-wrap"><h2 class="group-title">Repere și pagini excluse</h2>${cards(others)}
-      <p class="group-footer">Le poți activa manual dacă le consideri relevante.</p></section>` : ''}`;
+  const title = '<h1 class="big-title">Competitors<br>For You</h1>';
+  if (!state.candidates.length) return `${title}${emptyState('No competitors yet', 'Tap the round button to analyze your website.')}`;
+  const pending = pendingCount(state);
+  const hint = pending ? `${pending} selected. Tap the round button to track them.` : 'All selected competitors are tracked.';
+  return `${title}
+    <label class="search">${icon('market')}<span class="visually-hidden">Search competitors</span>
+      <input type="search" data-query placeholder="Search" value="${esc(ui.query)}" autocomplete="off"></label>
+    <div class="chips" role="group" aria-label="Filter by type">
+      ${CATEGORY_CHIPS.map((chip) => chipButton(chip, ui.chip, 'chip')).join('')}
+    </div>
+    <button type="button" class="see-more" data-action="open-report">see more</button>
+    ${state.discoveryLabel ? `<div class="pills spaced">${pill(state.discoveryLabel)}</div>` : ''}
+    <p class="screen-sub">${esc(hint)}</p>
+    <div class="overlap">${state.candidates.map((item, index) => competitorCard(state, item, index, ui)).join('')}</div>`;
 }
 
-function changeCard(change, rival, rivalIndex, ui) {
+function changeCard(change, rival, rivalIndex) {
   const confirmed = change.state === 'confirmed';
-  return `<article class="surface card">
-    <header class="card-head">
-      <span class="tile tone-rose">${icon(CHANGE_ICONS[change.type] ?? 'text')}</span>
-      <div class="row-main"><strong>${esc(CHANGE_LABELS[change.type] ?? change.type)}</strong><span class="sub">${esc(rival.title)}</span></div>
-    </header>
-    <div class="pills">
-      ${confirmed ? pill('Confirmată', 'ok', 'check') : pill('De confirmat', 'warn', 'clock')}
-      ${pill(dataLabel(change.url))}
-    </div>
-    <dl class="diff">
-      <div class="before">${icon('minus')}<dt>Înainte</dt><dd>${esc(change.before ?? 'nimic')}</dd></div>
-      <div class="after">${icon('plus')}<dt>După</dt><dd>${esc(change.after ?? 'eliminat')}</dd></div>
-    </dl>
-    <p class="meta">${esc(when(change.confirmedAt ?? change.firstSeenAt))}</p>
-    ${external(change.url, host(change.url))}
-    ${button(ui, { action: 'propose', label: 'Propune experiment', kind: 'cta', iconName: 'spark', wide: true, data: { rival: rivalIndex, change: change.id } })}
-  </article>`;
+  return tileCard({
+    tile: CHANGE_TILES[change.type] ?? 'tile-chat',
+    title: CHANGE_LABELS[change.type] ?? change.type,
+    sub: `${rival.title} · ${dataLabel(change.url)}`,
+    value: confirmed ? 'Confirmed' : 'To confirm',
+    attrs: `data-action="open-change" data-rival="${esc(rivalIndex)}" data-change="${esc(change.id)}"`,
+  });
 }
 
 function rivalIssue(rival) {
   if (rival.lastStatus === 'ok' && !rival.unread.length) return '';
-  const unread = rival.unread.length ? `Necitit: ${rival.unread.join(', ')}. ` : '';
-  return `<article class="surface card">
-    <header class="card-head">${avatar(rival.title)}
-      <div class="row-main"><strong>${esc(rival.title)}</strong><span class="sub">${esc(host(rival.url))}</span></div></header>
-    <div class="pills">${rival.lastStatus === 'ok' ? pill('Date incomplete', 'warn', 'alert') : statusPill(rival.lastStatus)}${pill(dataLabel(rival.url))}</div>
-    <p class="meta">${esc(unread)}Ultima observație reușită: ${esc(when(rival.lastOkAt))}.</p>
-    ${external(rival.url, 'Deschide și verifică manual')}
-  </article>`;
+  const status = RIVAL_STATUS[rival.lastStatus];
+  const pillHtml = status ? pill(...status) : pill('Incomplete data', 'warn', 'alert');
+  const unread = rival.unread.length ? `Not read: ${rival.unread.join(', ')}. ` : '';
+  return `<div class="row">${avatar(rival.title)}
+    <div class="row-main"><strong>${esc(rival.title)}</strong>
+    <span class="sub">${esc(unread)}Last good check: ${esc(when(rival.lastOkAt))}.</span>
+    ${external(rival.url, 'Open and check by hand')}</div>${pillHtml}</div>`;
 }
 
-function changesView(state, ui) {
+function changesView(state) {
+  const head = `${lilacHero('bell', true)}<h1 class="screen-title">What changed</h1>`;
   if (!state.rivals.length) {
-    return `${hero({ tone: 'arc', object: 'bell', lines: ['Ce s-a', 'schimbat'], sub: 'Alege rivali din ecranul Piață, apoi verifică.' })}
-      ${emptyState('Niciun rival urmărit', 'Ai nevoie de cel puțin un rival.')}`;
+    return `${head}<p class="screen-sub">Track a competitor to start.</p>
+      ${emptyState('Nothing tracked yet', 'Choose competitors in Market.')}`;
   }
-  const all = state.rivals.flatMap((rival) => [...rival.pending, ...rival.confirmed]);
-  const types = [...new Set(all.map((change) => change.type))];
-  const counts = types.map((type) => {
-    const seen = state.rivals.filter((r) => [...r.pending, ...r.confirmed].some((c) => c.type === type)).length;
-    return `<p class="summary"><span class="tile tone-aqua">${icon(CHANGE_ICONS[type] ?? 'text')}</span><span>${esc(CHANGE_LABELS[type])}: ${seen} din ${state.rivals.length} rivali urmăriți</span></p>`;
-  }).join('');
-  const cards = state.rivals.flatMap((rival, index) => [...rival.confirmed, ...rival.pending]
-    .map((change) => changeCard(change, rival, index, ui))).join('');
   const last = state.rivals.map((rival) => rival.lastCheckedAt).sort().at(-1);
-  return `
-    ${hero({
-      tone: 'arc',
-      object: 'bell',
-      lines: ['Ce s-a', 'schimbat'],
-      sub: `Ultima verificare: ${when(last)}. Rulează doar cu Chrome deschis.`,
-      cta: ringButton(ui, 'check', 'Verifică acum'),
-    })}
-    ${counts}
-    ${cards || emptyState('Nicio schimbare relevantă', 'O schimbare se confirmă la a doua observație.')}
-    ${state.rivals.map(rivalIssue).join('')}`;
+  const cards = state.rivals.flatMap((rival, index) => [...rival.confirmed, ...rival.pending]
+    .map((change) => changeCard(change, rival, index))).join('');
+  const issues = state.rivals.map(rivalIssue).join('');
+  return `${head}
+    <p class="screen-sub">Last check: ${esc(when(last))}. Tap the round button to check now.</p>
+    ${cards ? `<div class="stagger">${cards}</div>
+      <p class="section-footer">A change is confirmed at the second check. It is a signal to investigate.</p>`
+    : emptyState('No changes yet', 'A change is confirmed at the second check.')}
+    ${issues ? section('Needs attention', issues) : ''}`;
 }
 
-function experimentsView(state, ui) {
-  const heroBlock = hero({
-    tone: 'paper',
-    object: 'flask',
-    lines: ['Teste', 'aprobate'],
-    sub: 'Nimic nu a fost publicat în magazin.',
-  });
-  if (!state.approved.length) {
-    return `${heroBlock}${emptyState('Niciun experiment aprobat', 'Pornește de la o schimbare din ecranul Schimbări.')}`;
-  }
-  const cards = state.approved.map((item, index) => `<article class="surface card">
-    <header class="card-head"><span class="tile tone-aqua">${icon('flask')}</span>
-      <div class="row-main"><strong>${esc(item.headline)}</strong><span class="sub">${esc(item.primaryMetric)}</span></div></header>
-    <ul class="checks">
-      <li>${icon('check')}<span>Ipoteză și metrici salvate</span></li>
-      <li>${icon('check')}<span>${item.evidence.length} dovezi cu sursă</span></li>
-      <li>${icon('clock')}<span>Reverifică oferta rivalului după ${esc(when(item.recheckAt))}</span></li>
-    </ul>
-    <div class="actions">
-      ${button(ui, { action: 'brief', label: 'Brief', iconName: 'download', data: { index } })}
-      ${button(ui, { action: 'block', label: 'Bloc', iconName: 'download', data: { index } })}
-      ${button(ui, { action: 'visual', label: 'Vizual', iconName: 'spark', data: { index } })}
-    </div></article>`).join('');
-  return heroBlock + cards;
+function testCard(item, index) {
+  const tone = index % 2 ? 'aqua' : 'violet';
+  return `<button type="button" class="pcard ${tone}" data-action="open-share" data-index="${index}">
+    ${object3d(index % 2 ? 'tile-lilac' : 'tile-yellow', 'tile-object')}
+    <strong>${esc(item.headline)}</strong><span class="pcard-note">Tap to share</span></button>`;
 }
 
-export function sheetView(draft, ui) {
-  const blocked = !draft.check.ok;
-  const duration = draft.duration
-    ? `${draft.duration.weeks} săptămâni, ${draft.duration.perVariant} vizitatori pe variantă`
-    : 'Completează sesiunile și conversia pentru un calcul.';
-  const evidence = (draft.claims ?? []).map((claim) => {
-    const source = draft.evidence.find((item) => item.id === claim.evidenceId);
-    return `<li>${esc(claim.text)}${source ? external(source.url, host(source.url)) : ''}</li>`;
-  }).join('');
-  return `<div class="grabber" aria-hidden="true"></div>
-    <header class="sheet-head">
-      <h2 id="sheet-title">Experiment propus</h2>
-      <button type="button" class="icon-btn" data-action="reject" aria-label="Respinge și închide">${icon('close')}</button>
-    </header>
-    <div class="pills">${pill(draft.label)}${blocked ? pill('Respins de reguli', 'bad', 'close') : pill('Trece regulile', 'ok', 'check')}</div>
-    ${draft.check.errors.map((error) => `<p class="banner">${icon('alert')}<span>${esc(error)}</span></p>`).join('')}
-    <div class="variant">
-      <i class="handle tl"></i><i class="handle tr"></i><i class="handle bl"></i><i class="handle br"></i>
-      ${object3d('flask', 'variant-object')}
-      <strong>${esc(draft.headline)}</strong>
-      <p>${esc(draft.body)}</p>
-      <span class="variant-cta">${esc(draft.cta)}</span>
-    </div>
-    <p>${esc(draft.summary)}</p>
-    <p class="caption">Semnal de investigat, nu dovadă că rivalilor le-au crescut vânzările.</p>
-    <h3>Ipoteză</h3><p>${esc(draft.hypothesis)}</p>
-    <h3>Măsurare</h3>
-    <dl class="facts">
-      <div><dt>Principală</dt><dd>${esc(draft.primaryMetric)}</dd></div>
-      <div><dt>Control</dt><dd>${esc(draft.guardrailMetric)}</dd></div>
-      <div><dt>Durată</dt><dd>${esc(duration)}</dd></div>
-      <div><dt>Oprire</dt><dd>${esc(draft.stopCondition)}</dd></div>
-    </dl>
-    ${draft.duration?.tooLong ? `<p class="banner">${icon('clock')}<span>Testul depășește șase săptămâni. Alege o schimbare mai mare sau un test înainte/după, cu limitele lui.</span></p>` : ''}
-    <h3>Dovezi</h3><ul class="evidence">${evidence}</ul>
-    <div class="sheet-actions">
-      ${blocked ? button(ui, { action: 'fix-caps', label: 'Schimbă ce poți oferi', kind: 'cta', wide: true }) : `
-      ${button(ui, { action: 'approve', label: 'Aprobă', kind: 'cta', iconName: 'check', wide: true })}
-      ${button(ui, { action: 'preview', label: draft.previewing ? 'Ascunde de pe pagină' : 'Arată pe pagina mea', iconName: 'eye', wide: true })}`}
-    </div>`;
+function testsView(state) {
+  const title = '<h1 class="big-title">Approved<br>Tests</h1>';
+  if (!state.approved.length) return `${title}${emptyState('No tests yet', 'Start from a change in Changes.')}`;
+  return `${title}<p class="screen-sub">Nothing was published to your store.</p>
+    <div class="overlap">${state.approved.map(testCard).join('')}</div>`;
 }
 
-const VIEWS = { product: productView, market: marketView, changes: changesView, experiments: experimentsView };
+const VIEWS = { home: homeView, market: marketView, changes: changesView, tests: testsView };
 
 export function tabView(state, ui) {
   return VIEWS[ui.tab](state, ui);
 }
 
-export function primaryAction(state, ui) {
-  if (ui.tab === 'product') {
-    return state.analysis ? { action: 'open-report', label: 'Vezi raportul', icon: 'eye' }
-      : { action: 'analyze', label: 'Analizează site-ul meu', icon: 'radar' };
-  }
-  if (ui.tab === 'market') {
-    if (state.classified.length) return { action: 'track', label: 'Urmărește selecția', icon: 'check' };
-    if (state.candidates.length) return { action: 'read-candidates', label: 'Citește paginile', icon: 'eye' };
-    return state.own ? { action: 'discover', label: 'Urmărește piața', icon: 'radar' } : null;
-  }
-  if (ui.tab === 'changes' && state.rivals.length) return { action: 'check', label: 'Verifică acum', icon: 'refresh' };
-  return null;
-}
+export const titleOf = (tab) => TABS.find((item) => item.id === tab)?.label ?? '';
 
 function tabButton(tab, ui, badges) {
-  return `<button type="button" data-tab="${tab.id}" ${tab.id === ui.tab ? 'aria-current="page"' : ''}>
-    ${icon(tab.icon)}<span>${tab.label}</span>
-    ${badges[tab.id] ? `<span class="badge" aria-label="${badges[tab.id]} elemente">${badges[tab.id]}</span>` : ''}
+  return `<button type="button" data-tab="${tab.id}" aria-label="${tab.label}" title="${tab.label}" ${tab.id === ui.tab ? 'aria-current="page"' : ''}>
+    ${icon(tab.icon)}
+    ${badges[tab.id] ? `<span class="badge" aria-label="${badges[tab.id]} items">${badges[tab.id]}</span>` : ''}
   </button>`;
 }
 
 export function tabBarView(state, ui) {
-  const changes = state.rivals.reduce((sum, rival) => sum + rival.pending.length + rival.confirmed.length, 0);
-  const badges = { changes, experiments: state.approved.length };
+  const badges = { changes: countChanges(state), tests: state.approved.length };
   const primary = primaryAction(state, ui);
-  const fab = primary
-    ? `<button type="button" class="fab" data-action="${primary.action}" aria-label="${esc(primary.label)}" ${ui.busy ? 'disabled' : ''}>
-        ${ui.busy === primary.action ? '<span class="spinner" aria-hidden="true"></span>' : icon(primary.icon)}</button>`
-    : `<span class="fab idle" aria-hidden="true">${icon('spark')}</span>`;
+  const loading = ui.busy === primary.action;
+  const fab = `<button type="button" class="fab ${primary.waiting && !ui.busy ? 'waiting' : ''}" data-action="${primary.action}"
+    aria-label="${esc(primary.label)}" title="${esc(primary.label)}" ${ui.busy ? 'disabled' : ''} ${loading ? 'aria-busy="true"' : ''}>
+    ${loading ? '<span class="spinner" aria-hidden="true"></span>' : icon(primary.icon)}</button>`;
   return `${TABS.slice(0, 2).map((tab) => tabButton(tab, ui, badges)).join('')}${fab}
     ${TABS.slice(2).map((tab) => tabButton(tab, ui, badges)).join('')}`;
+}
+
+function switchRow(caps, name, label, iconName, tone) {
+  return `<label class="row"><span class="tile ${tone}">${icon(iconName)}</span>
+    <span class="row-main">${label}</span>
+    <input class="switch" type="checkbox" role="switch" data-cap="${name}" ${caps[name] ? 'checked' : ''}></label>`;
+}
+
+function numberRow(caps, name, label, unit = '') {
+  return `<label class="row"><span class="row-main">${label}</span>
+    <input type="number" min="0" inputmode="decimal" data-cap="${name}" value="${esc(caps[name])}" placeholder="0">
+    ${unit ? `<span class="unit">${unit}</span>` : ''}</label>`;
+}
+
+function offerSheet(state) {
+  const caps = state.capabilities;
+  return sheetFrame('Your offer', `
+    ${section('', `${switchRow(caps, 'samples', 'Samples', 'gift', 'pink')}
+      ${switchRow(caps, 'bundles', 'Bundles', 'box', 'orange')}
+      ${switchRow(caps, 'freeShipping', 'Free shipping', 'truck', 'aqua')}
+      ${numberRow(caps, 'maxDiscountPct', 'Maximum discount', '%')}`, 'Tests only use what you turn on here.')}
+    ${section('Traffic', `${numberRow(caps, 'sessionsPerMonth', 'Sessions per month')}
+      ${numberRow(caps, 'conversionPct', 'Conversion', '%')}`, 'Optional. Used to estimate how long a test takes.')}`);
+}
+
+function connectionRow(title, state, detail) {
+  const kinds = { ok: ['Online', 'ok'], off: ['Offline', 'bad'], unknown: ['Checking', ''] };
+  const [text, kind] = kinds[state] ?? kinds.unknown;
+  return `<div class="row"><span class="row-main"><strong>${esc(title)}</strong>
+    ${detail ? `<span class="sub">${esc(detail)}</span>` : ''}</span>${pill(text, kind)}</div>`;
+}
+
+function settingsSheet(ui) {
+  const { connection } = ui;
+  return sheetFrame('Settings', `
+    <h2 class="section-title">Appearance</h2>
+    ${segmented(APPEARANCES, ui.appearance, 'appearance', 'Appearance')}
+    ${section('Connection', `${connectionRow('Analysis server', connection.analysis, connection.analysisDetail)}
+      ${connectionRow('Demo server', connection.demo, connection.demoDetail)}`)}
+    ${section('', `<button type="button" class="row-button destructive" data-action="reset">
+      ${ui.confirmReset ? 'Tap again to erase everything' : 'Reset all data'}</button>`)}`);
+}
+
+function changeSheet(state, ui) {
+  const rival = state.rivals[ui.sheet.rival];
+  const change = rival && [...rival.pending, ...rival.confirmed].find((item) => item.id === ui.sheet.change);
+  if (!change) return sheetFrame('Change', '<p>This change is no longer available.</p>');
+  const confirmed = change.state === 'confirmed';
+  return sheetFrame(CHANGE_LABELS[change.type] ?? change.type, `
+    <div class="pills">
+      ${confirmed ? pill('Confirmed', 'ok', 'check') : pill('To confirm', 'warn', 'clock')}
+      ${pill(dataLabel(change.url))}
+    </div>
+    <dl class="diff">
+      <div class="before"><dt>Before</dt><dd>${esc(change.before ?? 'Nothing')}</dd></div>
+      <div class="after"><dt>After</dt><dd>${esc(change.after ?? 'Removed')}</dd></div>
+    </dl>
+    <p class="meta">${esc(rival.title)} · ${esc(when(change.confirmedAt ?? change.firstSeenAt))}</p>
+    <p>${external(change.url, host(change.url))}</p>`,
+  primaryButton(ui, { action: 'propose', label: 'Propose a test', data: { rival: ui.sheet.rival, change: change.id } }));
+}
+
+function factRow(label, value) {
+  return `<div class="row"><span class="row-main"><span class="sub">${esc(label)}</span><span>${esc(value)}</span></span></div>`;
+}
+
+function experimentSheet(state, ui) {
+  const draft = state.draft;
+  const blocked = !draft.check.ok;
+  const duration = draft.duration
+    ? `${draft.duration.weeks} weeks, ${draft.duration.perVariant} visitors per variant`
+    : 'Add sessions and conversion in Your offer.';
+  const evidence = (draft.claims ?? []).map((claim) => {
+    const source = draft.evidence.find((item) => item.id === claim.evidenceId);
+    return `<div class="source"><span class="source-quote">${esc(claim.text)}</span>
+      ${source ? external(source.url, host(source.url)) : ''}</div>`;
+  }).join('');
+  const actions = blocked
+    ? primaryButton(ui, { action: 'fix-caps', label: 'Change your offer' })
+    : `${primaryButton(ui, { action: 'approve', label: 'Approve', iconName: 'check' })}
+       ${primaryButton(ui, { action: 'preview', label: draft.previewing ? 'Hide from my page' : 'Show on my page', kind: 'secondary', iconName: 'eye' })}`;
+  return sheetFrame('Proposed test', `
+    <div class="pills">${pill(draft.label)}${blocked ? pill('Rejected by your rules', 'bad', 'close') : pill('Passes your rules', 'ok', 'check')}</div>
+    ${draft.check.errors.map((error) => `<p class="banner">${icon('alert')}<span>${esc(error)}</span></p>`).join('')}
+    <div class="variant"><strong>${esc(draft.headline)}</strong><p>${esc(draft.body)}</p>
+      <span class="variant-cta">${esc(draft.cta)}</span></div>
+    <p>${esc(draft.hypothesis)}</p>
+    ${draft.duration?.tooLong ? `<p class="banner">${icon('clock')}<span>This test takes over six weeks. Choose a bigger change or a before/after test, with its limits.</span></p>` : ''}
+    ${section('Measurement', `${factRow('Primary metric', draft.primaryMetric)}${factRow('Guardrail metric', draft.guardrailMetric)}
+      ${factRow('Duration', duration)}${factRow('Stop if', draft.stopCondition)}`)}
+    ${section('Sources', evidence, 'A signal to investigate. It does not show that a rival sold more.')}`, actions);
+}
+
+function shareSheet(state, ui) {
+  const item = state.approved[ui.sheet.index];
+  if (!item) return sheetFrame('Share', '<p>This test is no longer available.</p>');
+  return sheetFrame('Share', section('', `
+    ${chevronRow({ action: 'brief', title: 'Test brief', sub: 'Markdown file', iconName: 'doc', tone: 'aqua', data: { index: ui.sheet.index } })}
+    ${chevronRow({ action: 'block', title: 'Page block', sub: 'HTML file', iconName: 'code', tone: 'pink', data: { index: ui.sheet.index } })}
+    ${chevronRow({ action: 'visual', title: 'Visual for Adobe Express', sub: 'PNG file', iconName: 'image', tone: 'orange', data: { index: ui.sheet.index } })}`));
+}
+
+export function sheetView(state, ui) {
+  const views = {
+    offer: () => offerSheet(state),
+    settings: () => settingsSheet(ui),
+    change: () => changeSheet(state, ui),
+    experiment: () => experimentSheet(state, ui),
+    share: () => shareSheet(state, ui),
+  };
+  return views[ui.sheet.name]();
 }

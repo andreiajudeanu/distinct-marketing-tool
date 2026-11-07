@@ -12,16 +12,13 @@ import httpx
 from . import config
 from .errors import AnalysisError
 from .llm import LlmFn
-from .schemas import BusinessProfile, LlmQueries, LlmTriage, MarketDetection
+from .schemas import BusinessProfile, LlmTriage
 from .text import hostname, registrable_domain
 
 TAVILY_URL = "https://api.tavily.com/search"
 TAVILY_TIMEOUT_SECONDS = 30
-RESULTS_PER_QUERY = 10
-MAX_QUERIES = 4
 MAX_EXCLUDED_DOMAINS = 150
 
-# Keep in step with MARKETPLACE_DOMAINS in extension/lib/rules.js.
 MARKETPLACES = (
     "emag.ro", "amazon.", "ebay.", "etsy.com", "aliexpress.", "temu.com",
     "okazii.ro", "allegro.", "trendyol.", "walmart.com",
@@ -71,23 +68,18 @@ class Candidate:
 
 SearchFn = Callable[[str, str], Awaitable[list[SearchHit]]]
 
-QUERIES_SYSTEM = """Scrii interogări de căutare web care găsesc firme concurente.
-Scrii interogări pentru site-urile firmelor, nu pentru articole de tip „top 10”.
-Folosește limba pieței țintă și produsele concrete ale afacerii. Scrie cel mult 4 interogări.
-Nu pune numele afacerii analizate în interogări."""
-
-TRIAGE_SYSTEM = """Alegi din rezultate de căutare site-urile care par competitori reali ai afacerii.
-Un competitor vinde produse sau servicii asemănătoare unor clienți asemănători.
-Exclude directoare, reviste, bloguri, articole comparative și site-uri fără legătură.
-Limba sau domeniul unui site nu arată în ce țară vinde. Alege cel mult 8 domenii, cele mai relevante primele.
-Folosește exact domeniile din listă. Dacă niciunul nu se potrivește, întoarce o listă goală."""
+TRIAGE_SYSTEM = """From web search results, choose the sites that look like real competitors of the business.
+A competitor sells similar products or services to similar customers.
+Exclude directories, magazines, blogs, comparison articles and unrelated sites.
+A site's language or domain does not show where it sells.
+Choose at most 5 domains, most relevant first. Use the exact domains from the list. If none fit, return an empty list."""
 
 
 async def tavily_search(query: str, country: str) -> list[SearchHit]:
     body: dict = {
         "query": query,
         "search_depth": "basic",
-        "max_results": RESULTS_PER_QUERY,
+        "max_results": config.RESULTS_PER_QUERY,
         "topic": "general",
         "exclude_domains": EXCLUDED_DOMAINS[:MAX_EXCLUDED_DOMAINS],
     }
@@ -102,13 +94,13 @@ async def tavily_search(query: str, country: str) -> list[SearchHit]:
                 await asyncio.sleep(min(int(delay), 10) if delay.isdigit() else 2)
                 response = await client.post(TAVILY_URL, json=body, headers=headers)
         except httpx.HTTPError as error:
-            raise AnalysisError("search_unreachable", "Tavily nu răspunde.") from error
+            raise AnalysisError("search_unreachable", "Tavily is not responding.") from error
     if response.status_code == 401:
-        raise AnalysisError("search_auth", "Cheia Tavily din .env nu e acceptată.")
+        raise AnalysisError("search_auth", "The Tavily key in .env was not accepted.")
     if response.status_code in (432, 433):
-        raise AnalysisError("search_quota", "Ai atins limita planului Tavily.")
+        raise AnalysisError("search_quota", "You reached your Tavily plan limit.")
     if response.status_code != 200:
-        raise AnalysisError("search_status", f"Tavily a întors eroarea {response.status_code}.")
+        raise AnalysisError("search_status", f"Tavily returned error {response.status_code}.")
     return [
         SearchHit(item.get("url", ""), item.get("title", ""), item.get("content", ""))
         for item in response.json().get("results", [])
@@ -141,28 +133,15 @@ def filter_hits(hits: list[SearchHit], own_url: str) -> list[Candidate]:
             continue
         if LISTICLE.search(hit.title) and urlsplit(hit.url).path.strip("/"):
             continue
-        by_domain[domain] = Candidate(domain, hit.url, homepage_of(hit.url), hit.title, hit.snippet[:400], [hit.url])
+        by_domain[domain] = Candidate(domain, hit.url, homepage_of(hit.url), hit.title, hit.snippet[:240], [hit.url])
     return list(by_domain.values())[: config.MAX_CANDIDATES]
 
 
-async def write_queries(llm: LlmFn, profile: BusinessProfile, market: MarketDetection) -> list[str]:
-    brief = {
-        "categorie": profile.category.value,
-        "produse": profile.products,
-        "public": profile.target_audience.value,
-        "tara_tinta": market.country_code or "necunoscută",
-        "limba": market.language,
-    }
-    result = await llm(
-        system=QUERIES_SYSTEM,
-        content=[{"type": "text", "text": json.dumps(brief, ensure_ascii=False)}],
-        output=LlmQueries,
-        effort="low",
-    )
-    queries = [query.strip() for query in result.queries if query.strip()]
-    if not queries:
-        raise AnalysisError("no_queries", "Nu am putut formula căutări pentru acest site.")
-    return queries[:MAX_QUERIES]
+def usable_queries(queries: list[str]) -> list[str]:
+    cleaned = [query.strip() for query in queries if query.strip()]
+    if not cleaned:
+        raise AnalysisError("no_queries", "We could not write searches for this site.")
+    return cleaned[: config.MAX_QUERIES]
 
 
 async def search_all(search: SearchFn, queries: list[str], country: str) -> tuple[list[SearchHit], list[str]]:
@@ -174,25 +153,21 @@ async def search_all(search: SearchFn, queries: list[str], country: str) -> tupl
         raise crashes[0]
     if failures and not hits:
         raise failures[0]
-    warnings = [f"O căutare din {len(queries)} a eșuat: {failure.message}" for failure in failures[:1]]
+    warnings = [f"One of {len(queries)} searches failed: {failure.message}" for failure in failures[:1]]
     return hits, warnings
 
 
 async def triage(llm: LlmFn, profile: BusinessProfile, candidates: list[Candidate]) -> list[Candidate]:
-    listing = [
-        {"domain": item.domain, "title": item.title, "snippet": item.snippet, "url": item.url}
-        for item in candidates
-    ]
-    brief = {"categorie": profile.category.value, "produse": profile.products, "public": profile.target_audience.value}
+    listing = [{"domain": item.domain, "title": item.title, "snippet": item.snippet} for item in candidates]
+    brief = {"category": profile.category.value, "audience": profile.target_audience.value}
     result = await llm(
         system=TRIAGE_SYSTEM,
         content=[{
             "type": "text",
-            "text": f"Afacerea: {json.dumps(brief, ensure_ascii=False)}\n\n"
-                    f"<date_pagini>\n{json.dumps(listing, ensure_ascii=False)}\n</date_pagini>",
+            "text": f"Business: {json.dumps(brief, ensure_ascii=False)}\n\n"
+                    f"<page_data>\n{json.dumps(listing, ensure_ascii=False)}\n</page_data>",
         }],
         output=LlmTriage,
-        effort="low",
     )
     by_domain = {item.domain: item for item in candidates}
     picked: list[Candidate] = []

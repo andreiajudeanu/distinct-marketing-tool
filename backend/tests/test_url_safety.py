@@ -1,4 +1,4 @@
-"""Phase 4: every address that must never be fetched."""
+"""Every address that must never be fetched."""
 
 import asyncio
 import socket

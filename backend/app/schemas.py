@@ -22,11 +22,7 @@ class PageCapture(BaseModel):
     lang: str = Field(default="", max_length=20)
     headings: list[str] = Field(default_factory=list, max_length=40)
     cta_texts: list[str] = Field(default_factory=list, max_length=40)
-    nav_labels: list[str] = Field(default_factory=list, max_length=40)
-    structure: list[str] = Field(default_factory=list, max_length=30)
     visible_text: str = Field(default="", max_length=MAX_TEXT)
-    colors: list[str] = Field(default_factory=list, max_length=20)
-    fonts: list[str] = Field(default_factory=list, max_length=10)
     prices: list[str] = Field(default_factory=list, max_length=20)
     currency: str = Field(default="", max_length=10)
     ships_to: list[str] = Field(default_factory=list, max_length=40)
@@ -41,7 +37,7 @@ class PageCapture(BaseModel):
     @classmethod
     def http_only(cls, value: str) -> str:
         if not value.startswith(("http://", "https://")):
-            raise ValueError("URL-ul trebuie să fie http sau https.")
+            raise ValueError("The URL must use http or https.")
         return value
 
 
@@ -62,6 +58,7 @@ class AnalysisRequest(BaseModel):
     market_override: MarketOverride | None = None
     capabilities: Capabilities = Field(default_factory=Capabilities)
     mock: bool = False
+    force: bool = False
 
 
 class Claim(BaseModel):
@@ -82,20 +79,15 @@ class Evidence(BaseModel):
 class InferredText(BaseModel):
     value: str
     status: Literal["inferred", "unknown"] = "inferred"
-    basis: str = ""
 
 
 class BusinessProfile(BaseModel):
     url: str
     domain: str
-    title: str
-    meta_description: str
     business_name: str
     category: InferredText
-    products: list[str]
     value_proposition: InferredText
     target_audience: InferredText
-    headings: list[str]
 
 
 class MarketSignal(BaseModel):
@@ -112,17 +104,6 @@ class MarketDetection(BaseModel):
     note: str
 
 
-class SiteContent(BaseModel):
-    headlines: list[str]
-    ctas: list[str]
-    value_propositions: list[str]
-    product_categories: list[str]
-    pricing_position: str
-    page_structure: list[str]
-    palette: list[str]
-    fonts: list[str]
-
-
 class Competitor(BaseModel):
     name: str
     url: str
@@ -132,7 +113,8 @@ class Competitor(BaseModel):
     why_relevant: str
     evidence_ids: list[str]
     source_urls: list[str]
-    content: SiteContent
+    positioning: Claim | None = None
+    visual: Claim | None = None
     screenshot_data_url: str | None = None
 
 
@@ -146,24 +128,10 @@ class SkippedSite(BaseModel):
     reason: str
 
 
-class PositioningComparison(BaseModel):
-    domain: str
-    similarities: list[Claim]
-    differences: list[Claim]
-
-
-class VisualComparison(BaseModel):
-    domain: str
-    similarities: list[Claim]
-    differences: list[Claim]
-    layout: str
-
-
 class Recommendation(BaseModel):
     priority: Literal["high", "medium", "low"]
     problem: str
     evidence_ids: list[str]
-    opportunity: str
     website_change: str
     example_headline: str
     example_cta: str
@@ -174,14 +142,11 @@ class Recommendation(BaseModel):
 class AnalysisResult(BaseModel):
     profile: BusinessProfile | None = None
     market: MarketDetection | None = None
-    own_content: SiteContent | None = None
     own_screenshot_data_url: str | None = None
     competitors: list[Competitor] = Field(default_factory=list)
     skipped: list[SkippedSite] = Field(default_factory=list)
     candidates_found: int = 0
-    positioning_summary: str = ""
-    positioning: list[PositioningComparison] = Field(default_factory=list)
-    visual: list[VisualComparison] = Field(default_factory=list)
+    gap_summary: Claim | None = None
     recommendations: list[Recommendation] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
 
@@ -199,14 +164,22 @@ class Step(BaseModel):
     detail: str = ""
 
 
+class Usage(BaseModel):
+    calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+
+
 class JobView(BaseModel):
     job_id: str
     status: Literal["queued", "running", "done", "partial", "failed"]
-    label: Literal["LIVE", "SIMULAT"]
+    label: Literal["LIVE", "SIMULATED"]
     created_at: str
     updated_at: str
     steps: list[Step]
     result: AnalysisResult
+    usage: Usage = Field(default_factory=Usage)
     errors: list[ApiError] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
@@ -225,18 +198,12 @@ class LlmModel(BaseModel):
 class LlmProfile(LlmModel):
     business_name: str
     category: str
-    products: list[str]
     value_proposition: str
-    value_proposition_basis: str
     target_audience: str
-    target_audience_basis: str
     language_code: str
     country_code: str
     country_quote: str
-
-
-class LlmQueries(LlmModel):
-    queries: list[str]
+    search_queries: list[str]
 
 
 class LlmTriagePick(LlmModel):
@@ -248,6 +215,11 @@ class LlmTriage(LlmModel):
     selected: list[LlmTriagePick]
 
 
+class LlmClaim(LlmModel):
+    text: str
+    evidence_ids: list[str]
+
+
 class LlmVerdict(LlmModel):
     domain: str
     name: str
@@ -256,47 +228,14 @@ class LlmVerdict(LlmModel):
     quotes: list[str]
     market_status: Literal["confirmed", "unconfirmed", "other_market"]
     market_quote: str
-    value_propositions: list[str]
-    product_categories: list[str]
-    pricing_position: str
-
-
-class LlmVerification(LlmModel):
-    verdicts: list[LlmVerdict]
-
-
-class LlmClaim(LlmModel):
-    text: str
-    evidence_ids: list[str]
-
-
-class LlmPositioning(LlmModel):
-    domain: str
-    similarities: list[LlmClaim]
-    differences: list[LlmClaim]
-
-
-class LlmVisual(LlmModel):
-    domain: str
-    similarities: list[LlmClaim]
-    differences: list[LlmClaim]
-    layout: str
-
-
-class LlmComparison(LlmModel):
-    positioning_summary: str
-    own_value_propositions: list[str]
-    own_product_categories: list[str]
-    own_pricing_position: str
-    positioning: list[LlmPositioning]
-    visual: list[LlmVisual]
+    positioning: LlmClaim
+    visual: LlmClaim
 
 
 class LlmRecommendation(LlmModel):
     priority: Literal["high", "medium", "low"]
     problem: str
     evidence_ids: list[str]
-    opportunity: str
     website_change: str
     example_headline: str
     example_cta: str
@@ -305,5 +244,7 @@ class LlmRecommendation(LlmModel):
     requires: list[Literal["samples", "bundles", "freeShipping"]]
 
 
-class LlmRecommendations(LlmModel):
+class LlmReport(LlmModel):
+    verdicts: list[LlmVerdict]
+    gap_summary: LlmClaim
     recommendations: list[LlmRecommendation]

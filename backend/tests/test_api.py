@@ -1,4 +1,4 @@
-"""Phase 1: API, job lifecycle and CORS."""
+"""API, job lifecycle, report reuse and CORS."""
 
 import time
 
@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app import config
 from app.jobs import JobStore
-from app.main import create_app, cors_pattern
+from app.main import cors_pattern, create_app
 from app.schemas import AnalysisRequest, PageCapture
 
 ORIGIN = "chrome-extension://" + "a" * 32
@@ -40,12 +40,13 @@ def test_health_reports_configuration_without_secrets(client):
 def test_a_demo_page_runs_on_fixtures_and_is_labelled_simulated(client):
     created = client.post("/api/analyses", json={"page": DEMO_PAGE})
     assert created.status_code == 202
-    assert created.json()["label"] == "SIMULAT"
+    assert created.json()["label"] == "SIMULATED"
     job = wait_until_finished(client, created.json()["job_id"])
     assert job["status"] == "done"
-    assert job["label"] == "SIMULAT"
+    assert job["label"] == "SIMULATED"
     assert len(job["result"]["recommendations"]) == 3
-    assert any("SIMULAT" in warning for warning in job["warnings"])
+    assert job["usage"]["estimated_cost_usd"] == 0
+    assert any("SIMULATED" in warning for warning in job["warnings"])
 
 
 def test_fixture_claims_all_point_at_saved_evidence(client):
@@ -54,7 +55,33 @@ def test_fixture_claims_all_point_at_saved_evidence(client):
     ids = {item["id"] for item in result["evidence"]}
     cited = [i for r in result["recommendations"] for i in r["evidence_ids"]]
     cited += [i for c in result["competitors"] for i in c["evidence_ids"]]
+    cited += [i for c in result["competitors"] for i in c["positioning"]["evidence_ids"]]
+    cited += result["gap_summary"]["evidence_ids"]
     assert cited and set(cited) <= ids
+
+
+def test_the_same_page_reuses_the_report_instead_of_paying_again(client):
+    first = client.post("/api/analyses", json={"page": DEMO_PAGE}).json()
+    wait_until_finished(client, first["job_id"])
+    second = client.post("/api/analyses", json={"page": DEMO_PAGE}).json()
+    assert second["job_id"] == first["job_id"]
+
+
+def test_analyze_again_forces_a_new_report(client):
+    first = client.post("/api/analyses", json={"page": DEMO_PAGE}).json()
+    wait_until_finished(client, first["job_id"])
+    second = client.post("/api/analyses", json={"page": DEMO_PAGE, "force": True}).json()
+    assert second["job_id"] != first["job_id"]
+    wait_until_finished(client, second["job_id"])
+
+
+def test_a_different_page_is_not_reused(client):
+    first = client.post("/api/analyses", json={"page": DEMO_PAGE}).json()
+    wait_until_finished(client, first["job_id"])
+    other = {"url": "http://localhost:8787/demo/rival-a"}
+    second = client.post("/api/analyses", json={"page": other}).json()
+    assert second["job_id"] != first["job_id"]
+    wait_until_finished(client, second["job_id"])
 
 
 def test_missing_keys_refuse_a_live_job_instead_of_inventing_results(monkeypatch, client):

@@ -1,308 +1,286 @@
 // Pure views for the results page: job state in, HTML out.
+// Three phones, as in the reference picture. Narrow windows show one at a time.
 
 import { icon } from './icons.js';
 import {
-  analysisPill, avatar, emptyState, esc, external, group, hero, host, pill, safeUrl, stepsView, when,
+  analysisPill, aquaCard, avatar, chevronRow, chipButton, emptyState, esc, external, host, lilacHero,
+  object3d, pill, primaryButton, safeUrl, section, sheetFrame, stageView, stepsView, tileCard, when,
 } from './views.js';
 
 const COMPETITOR_TYPES = {
-  direct: ['Competitor direct', 'ok'],
-  indirect: ['Competitor indirect', 'warn'],
-  visual_reference: ['Referință vizuală', ''],
+  direct: ['Direct', 'ok'],
+  indirect: ['Indirect', 'warn'],
+  visual_reference: ['Visual reference', ''],
 };
 
 const COMPETITOR_MARKETS = {
-  confirmed: ['Piață confirmată', 'ok', 'check'],
-  unconfirmed: ['Piață neconfirmată', 'warn', 'alert'],
+  confirmed: ['Market confirmed', 'ok', 'check'],
+  unconfirmed: ['Market unconfirmed', 'warn', 'alert'],
 };
 
 const SKIPPED = {
-  blocked: ['Blocată', 'bad', 'lock'],
-  unavailable: ['Pagină indisponibilă', 'bad', 'alert'],
-  robots: ['Interzis prin robots.txt', 'warn', 'lock'],
-  unsafe: ['Adresă nepermisă', 'bad', 'shield'],
-  failed: ['Nu s-a încărcat', 'warn', 'alert'],
-  not_competitor: ['Necomparabil', 'warn', 'close'],
-  other_market: ['Altă piață', 'warn', 'radar'],
-  unverified: ['Neverificat', 'warn', 'alert'],
+  blocked: ['Blocked', 'bad', 'lock'],
+  unavailable: ['Page unavailable', 'bad', 'alert'],
+  robots: ['Disallowed by robots.txt', 'warn', 'lock'],
+  unsafe: ['Forbidden address', 'bad', 'shield'],
+  failed: ['Did not load', 'warn', 'alert'],
+  not_competitor: ['Not comparable', 'warn', 'close'],
+  other_market: ['Other market', 'warn', 'market'],
+  unverified: ['Not verified', 'warn', 'alert'],
 };
 
 const MARKET_STATUS = {
-  detected: ['Dedusă din semnale', 'ok', 'check'],
-  unconfirmed: ['Piață neconfirmată', 'warn', 'alert'],
-  corrected: ['Corectată de tine', 'ok', 'check'],
-  unknown: ['Necunoscută', 'warn', 'alert'],
+  detected: ['Inferred', 'ok', 'check'],
+  unconfirmed: ['Market unconfirmed', 'warn', 'alert'],
+  corrected: ['Corrected by you', 'ok', 'check'],
+  unknown: ['Unknown', 'warn', 'alert'],
 };
 
 const PRIORITIES = {
-  high: ['Prioritate mare', 'bad'],
-  medium: ['Prioritate medie', 'warn'],
-  low: ['Prioritate mică', ''],
+  high: ['High priority', 'bad'],
+  medium: ['Medium priority', 'warn'],
+  low: ['Low priority', ''],
 };
 
 export const SECTIONS = [
-  { id: 'rezumat', label: 'Rezumat', icon: 'bag' },
-  { id: 'competitori', label: 'Rivali', icon: 'radar' },
-  { id: 'comparatie', label: 'Compară', icon: 'eye' },
-  { id: 'recomandari', label: 'Sfaturi', icon: 'spark' },
+  { id: 'overview', label: 'Overview', tone: 'aqua' },
+  { id: 'competitors', label: 'Competitors', tone: 'pink' },
+  { id: 'actions', label: 'Actions', tone: 'orange' },
 ];
 
+const PRIORITY_CHIPS = [
+  { id: 'high', label: 'High', tone: 'aqua' },
+  { id: 'medium', label: 'Medium', tone: 'pink' },
+  { id: 'low', label: 'Low', tone: 'orange' },
+];
+
+const COMPETITOR_TILES = ['tile-orange', 'tile-blue', 'tile-yellow'];
+
+const COUNTRIES = [
+  'AT', 'AU', 'BE', 'BG', 'BR', 'CA', 'CH', 'CZ', 'DE', 'DK', 'ES', 'FI', 'FR', 'GB', 'GR', 'HU', 'IE',
+  'IN', 'IT', 'JP', 'MD', 'MX', 'NL', 'NO', 'NZ', 'PL', 'PT', 'RO', 'SE', 'SK', 'TR', 'US',
+];
+const LANGUAGES = ['bg', 'cs', 'da', 'de', 'el', 'en', 'es', 'fi', 'fr', 'hu', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'ro', 'sk', 'sv', 'tr'];
+
 const SAFE_IMAGE = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
-const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
 
 const labelled = (table, key) => {
   const [text, kind, iconName] = table[key] ?? [key, '', ''];
   return pill(text, kind, iconName);
 };
 
-function countryName(code) {
-  if (!code) return 'Necunoscută';
+function displayName(type, code) {
+  if (!code) return '';
   try {
-    return new Intl.DisplayNames(['ro'], { type: 'region' }).of(code) ?? code;
+    return new Intl.DisplayNames(['en'], { type }).of(code) ?? code;
   } catch {
     return code;
   }
 }
 
-const dash = (value) => esc(value || 'Necitit');
-
-function citations(ids) {
-  return ids.map((id) => `<a class="cite" href="#${esc(id)}" aria-label="Dovada ${esc(id)}">${esc(id)}</a>`).join('');
+function selectRow(id, label, codes, type, selected, emptyLabel) {
+  const list = selected && !codes.includes(selected) ? [selected, ...codes] : codes;
+  const options = list
+    .map((code) => ({ code, name: displayName(type, code) }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'en'))
+    .map(({ code, name }) => `<option value="${esc(code)}" ${code === selected ? 'selected' : ''}>${esc(name)}</option>`)
+    .join('');
+  const placeholder = selected ? '' : `<option value="" selected>${esc(emptyLabel)}</option>`;
+  return `<label class="row"><span class="row-main">${esc(label)}</span>
+    <select id="${id}">${placeholder}${options}</select></label>`;
 }
 
-function claimList(title, claims) {
-  if (!claims.length) return '';
-  const items = claims.map((claim) => `<li><span>${esc(claim.text)}</span><span class="cites">${citations(claim.evidence_ids)}</span></li>`).join('');
-  return `<h4>${esc(title)}</h4><ul class="claims">${items}</ul>`;
+function sourcesChip(ids) {
+  if (!ids?.length) return '';
+  const text = ids.length === 1 ? '1 source' : `${ids.length} sources`;
+  return `<button type="button" class="sources-chip" data-action="open-sources" data-ids="${esc(ids.join(','))}">
+    ${esc(text)}${icon('chevron')}</button>`;
 }
 
-function shot(src, alt) {
-  if (!src || !SAFE_IMAGE.test(src)) return `<p class="shot-missing">${icon('eye')}<span>Captură necitită</span></p>`;
-  return `<img class="shot" src="${src}" alt="${esc(alt)}">`;
+function fact(label, value) {
+  return `<p><span class="field-label">${esc(label)}</span>${esc(value)}</p>`;
 }
 
-function chips(items) {
-  return items.length ? `<div class="pills">${items.map((item) => pill(item)).join('')}</div>` : '<p class="meta">Necitit</p>';
+function inferredRow(label, field) {
+  const known = field && field.status !== 'unknown' && field.value;
+  return `<div class="row"><span class="row-main"><span class="sub">${esc(label)}</span>
+    <span>${esc(known ? field.value : 'Not read')}</span></span>${known ? pill('Inferred') : ''}</div>`;
 }
 
-function swatches(colors) {
-  const valid = colors.filter((color) => SAFE_COLOR.test(color));
-  if (!valid.length) return '<p class="meta">Paletă necitită</p>';
-  return `<div class="swatches">${valid.map((color) =>
-    `<span class="swatch"><i style="background:${color}"></i>${esc(color)}</span>`).join('')}</div>`;
-}
-
-function fact(label, value, note = '') {
-  return `<div><dt>${esc(label)}</dt><dd>${value}${note ? `<span class="sub">${esc(note)}</span>` : ''}</dd></div>`;
-}
-
-function inferred(field) {
-  if (!field || field.status === 'unknown' || !field.value) return 'Necitit';
-  return `${esc(field.value)} ${pill('Dedus')}`;
-}
-
-function summarySection(result) {
-  const { profile } = result;
-  if (!profile) return '';
-  const facts = `<dl class="facts">
-    ${fact('Domeniu', external(profile.url, profile.domain))}
-    ${fact('Categorie', inferred(profile.category))}
-    ${fact('Produse sau servicii', dash(profile.products.join(', ')))}
-    ${fact('Propunere de valoare', inferred(profile.value_proposition), profile.value_proposition.basis)}
-    ${fact('Public țintă', inferred(profile.target_audience), profile.target_audience.basis)}
-  </dl>`;
-  return group('Rezumatul site-ului', `<div class="card-body">${facts}</div>`,
-    'Ce e marcat „Dedus” e o interpretare, nu un fapt verificat.');
-}
-
-function marketSection(result) {
-  const { market } = result;
+function marketSection(market, busy) {
   if (!market) return '';
-  const signals = market.signals.map((signal) =>
-    `<li>${pill(signal.strength === 'weak' ? 'Semnal slab' : signal.strength === 'strong' ? 'Semnal puternic' : 'Semnal mediu')}<span>${esc(signal.kind)}: ${esc(signal.value)}</span></li>`).join('');
-  return group('Piața țintă', `<div class="card-body market">
-    <div class="market-head"><strong class="market-name">${esc(countryName(market.country_code))}</strong>${labelled(MARKET_STATUS, market.status)}</div>
-    <p class="meta">${esc(market.note)}</p>
-    ${signals ? `<details><summary>${icon('chevron')}Semnale găsite</summary><ul class="signals">${signals}</ul></details>` : ''}
-    <div class="market-form">
-      <label><span>Țară, două litere</span>
-        <input type="text" id="market-country" maxlength="2" autocomplete="off" value="${esc(market.country_code)}"></label>
-      <label><span>Limbă, două litere</span>
-        <input type="text" id="market-language" maxlength="2" autocomplete="off" value="${esc(market.language)}"></label>
+  const name = displayName('region', market.country_code) || 'Unknown';
+  return `${section('Target market', `
+    <div class="row"><span class="row-main"><strong>${esc(name)}</strong>
+      <span class="sub">${esc(market.note)}</span></span>${labelled(MARKET_STATUS, market.status)}</div>
+    ${selectRow('market-country', 'Country', COUNTRIES, 'region', market.country_code, 'Choose a country')}
+    ${selectRow('market-language', 'Language', LANGUAGES, 'language', market.language, 'Choose a language')}`)}
+    <div class="section">${primaryButton({ busy: busy ? 'rerun' : null }, { action: 'rerun', label: 'Update market', kind: 'secondary' })}</div>`;
+}
+
+function notices(job, notice) {
+  const items = [notice, ...job.errors.map((error) => error.message), ...job.warnings].filter(Boolean);
+  return items.map((text) => `<p class="banner" role="alert">${icon('alert')}<span>${esc(text)}</span></p>`).join('');
+}
+
+function costNote(job) {
+  const cost = job.usage?.estimated_cost_usd ?? 0;
+  return cost > 0 ? `<p class="cost-note">This analysis cost about $${cost.toFixed(2)} in AI usage.</p>` : '';
+}
+
+function overviewPhone(job, { notice, busy, finished }) {
+  const { result } = job;
+  const { profile, gap_summary: gap } = result;
+  const about = profile ? section('Your website', `
+    ${inferredRow('Category', profile.category)}
+    ${inferredRow('Value proposition', profile.value_proposition)}
+    ${inferredRow('Audience', profile.target_audience)}`,
+  'Inferred means our reading of your page, not a verified fact.') : '';
+  const title = gap ? 'Your main opportunity' : finished ? 'Your market' : 'Analyzing your website';
+  return `${stageView()}
+    <div class="scroller"><div class="stage-space"></div>
+      ${aquaCard(title)}
+      <div class="on-violet">
+        <div class="pills center top-gap">${pill(job.label, job.label === 'LIVE' ? 'ok' : 'warn')}${analysisPill(job.status)}</div>
+        ${gap ? `<p class="lede">${esc(gap.text)}</p><div class="sources-row">${sourcesChip(gap.evidence_ids)}</div>` : ''}
+        ${finished ? '' : `<div aria-live="polite">${stepsView(job.steps)}</div>
+          <p class="lede">You can close the panel. The analysis keeps running.</p>`}
+        ${notices(job, notice)}
+        ${marketSection(result.market, busy)}
+        ${about}
+        ${finished ? costNote(job) : ''}
+      </div>
+    </div>`;
+}
+
+function competitorsPhone(job, finished) {
+  const { competitors, skipped, candidates_found: found } = job.result;
+  const cards = competitors.map((item, index) => tileCard({
+    tile: COMPETITOR_TILES[index % COMPETITOR_TILES.length],
+    title: item.name,
+    value: (COMPETITOR_TYPES[item.category] ?? [item.category])[0],
+    attrs: `data-action="open-competitor" data-index="${index}"`,
+  })).join('');
+  const empty = finished
+    ? emptyState('No verified competitors', 'We do not invent competitors.')
+    : emptyState('Still looking', 'Competitors appear here when they are verified.');
+  const summary = found ? `${competitors.length} verified from ${found} candidates found automatically.` : '';
+  return `<div class="scroller">
+      ${lilacHero('rocket')}
+      <h2 class="screen-title">Your Competitors</h2>
+      ${summary ? `<p class="screen-sub">${esc(summary)}</p>` : ''}
+      <div class="pills spaced">${pill(job.label, job.label === 'LIVE' ? 'ok' : 'warn')}</div>
+      ${competitors.length ? `<div class="stagger">${cards}</div>` : empty}
+      ${skipped.length ? section('', chevronRow({ action: 'open-skipped', title: 'Sites we left out', iconName: 'alert', tone: 'yellow', value: String(skipped.length) })) : ''}
     </div>
-  </div>`, 'Corectează câmpurile, apoi apasă butonul rotund de jos. Reluăm căutarea pentru noua piață.');
+    <div class="report-bar"><button type="button" class="fab" data-action="open-panel" aria-label="Open the side panel" title="Open the side panel">${icon('market')}</button></div>`;
 }
 
-function competitorCard(item) {
-  const types = labelled(COMPETITOR_TYPES, item.category);
-  const sources = item.source_urls.map((url) => `<li>${external(url, host(url))}</li>`).join('');
-  return `<article class="surface competitor">
-    ${shot(item.screenshot_data_url, `Prima pagină ${item.name}`)}
-    <div class="competitor-body">
-      <header class="card-head">${avatar(item.name)}
-        <div class="row-main"><strong>${esc(item.name)}</strong>${external(item.url, item.domain)}</div></header>
-      <div class="pills">${types}${labelled(COMPETITOR_MARKETS, item.market_status)}</div>
-      <p>${esc(item.why_relevant)}</p>
-      <p class="cites">${citations(item.evidence_ids.slice(0, 4))}</p>
-      <details><summary>${icon('chevron')}Mesaje și oferte</summary>
-        <dl class="facts">
-          ${fact('Titluri', dash(item.content.headlines.slice(0, 4).join(' · ')))}
-          ${fact('Butoane', dash(item.content.ctas.slice(0, 4).join(' · ')))}
-          ${fact('Propuneri de valoare', dash(item.content.value_propositions.join(' · ')))}
-          ${fact('Categorii', dash(item.content.product_categories.join(' · ')))}
-          ${fact('Prețuri vizibile', dash(item.content.pricing_position))}
-          ${fact('Structura paginii', dash(item.content.page_structure.slice(0, 6).join(' · ')))}
-        </dl>
-      </details>
-      ${sources ? `<details><summary>${icon('chevron')}Surse</summary><ul class="sources">${sources}</ul></details>` : ''}
+function actionCard(item, index) {
+  const tone = index % 2 ? 'aqua' : 'violet';
+  return `<button type="button" class="pcard ${tone}" data-action="open-recommendation" data-index="${index}">
+    ${object3d(index % 2 ? 'tile-yellow' : 'tile-lilac', 'tile-object')}
+    <strong>${esc(item.problem)}</strong>
+    <span class="pcard-note">${esc(PRIORITIES[item.priority]?.[0] ?? item.priority)}</span></button>`;
+}
+
+function actionsPhone(job, finished, priority) {
+  const { recommendations, profile } = job.result;
+  const shown = recommendations
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => !priority || item.priority === priority);
+  const cards = shown.map(({ item, index }) => actionCard(item, index)).join('');
+  const empty = !recommendations.length
+    ? (finished
+      ? emptyState('No recommendations', 'We only write them when saved evidence exists.')
+      : emptyState('Still writing', 'Recommendations appear when the report is ready.'))
+    : emptyState('Nothing here', 'No recommendation has this priority.');
+  const openSite = profile
+    ? `<a class="fab" href="${safeUrl(profile.url)}" target="_blank" rel="noreferrer" aria-label="Open your website" title="Open your website">${icon('link')}</a>`
+    : '';
+  return `<div class="scroller">
+      <h2 class="big-title">Actions<br>For You</h2>
+      <div class="chips" role="group" aria-label="Filter by priority">
+        ${PRIORITY_CHIPS.map((chip) => chipButton(chip, priority, 'priority')).join('')}
+      </div>
+      <div class="pills spaced top-gap">${pill(job.label, job.label === 'LIVE' ? 'ok' : 'warn')}</div>
+      ${shown.length ? `<div class="overlap">${cards}</div>` : empty}
+      ${recommendations.length ? '<p class="section-footer">What you see at a competitor is a signal to investigate, not proof that its sales grew.</p>' : ''}
     </div>
-  </article>`;
-}
-
-function competitorsSection(result, finished) {
-  const { competitors, skipped } = result;
-  const skippedRows = skipped.map((item) => `<li class="row list-row">${avatar(item.domain)}
-    <div class="row-main"><strong>${esc(item.domain)}</strong><span class="sub">${esc(item.reason)}</span></div>
-    ${labelled(SKIPPED, item.status)}</li>`).join('');
-  const found = result.candidates_found
-    ? `${competitors.length} competitori verificați din ${result.candidates_found} candidați găsiți automat.` : '';
-  const body = competitors.length
-    ? `<div class="competitor-grid">${competitors.map(competitorCard).join('')}</div>`
-    : finished ? emptyState('Niciun competitor verificat', 'Nu inventăm competitori. Vezi mai jos ce s-a întâmplat.') : '';
-  return `<section class="group-wrap" id="competitori">
-    <h2 class="group-title">Competitori găsiți automat</h2>
-    ${found ? `<p class="group-footer lead">${esc(found)}</p>` : ''}
-    ${body}
-    ${skippedRows ? `<details class="surface skipped"><summary>${icon('chevron')}Site-uri excluse sau blocate (${skipped.length})</summary>
-      <ul>${skippedRows}</ul></details>` : ''}
-  </section>`;
-}
-
-function positioningSection(result) {
-  if (!result.positioning.length && !result.positioning_summary) return '';
-  const names = new Map(result.competitors.map((item) => [item.domain, item.name]));
-  const cards = result.positioning.map((entry) => `<article class="surface card">
-    <strong>${esc(names.get(entry.domain) ?? entry.domain)}</strong>
-    ${claimList('Asemănări', entry.similarities)}${claimList('Diferențe', entry.differences)}
-  </article>`).join('');
-  return `<section class="group-wrap" id="comparatie">
-    <h2 class="group-title">Comparația mesajelor</h2>
-    ${result.positioning_summary ? `<p class="surface lede">${esc(result.positioning_summary)}</p>` : ''}
-    <div class="compare-grid">${cards}</div>
-  </section>`;
-}
-
-function visualSection(result) {
-  if (!result.visual.length) return '';
-  const byDomain = new Map(result.competitors.map((item) => [item.domain, item]));
-  const own = result.own_content;
-  const ownCard = `<article class="surface card">
-    <strong>Site-ul tău</strong>
-    ${shot(result.own_screenshot_data_url, 'Prima pagină a site-ului tău')}
-    ${swatches(own?.palette ?? [])}
-  </article>`;
-  const cards = result.visual.map((entry) => {
-    const item = byDomain.get(entry.domain);
-    return `<article class="surface card">
-      <strong>${esc(item?.name ?? entry.domain)}</strong>
-      ${swatches(item?.content.palette ?? [])}
-      <p class="meta">${dash(entry.layout)}</p>
-      ${claimList('Se aseamănă', entry.similarities)}${claimList('Diferă', entry.differences)}
-    </article>`;
-  }).join('');
-  return `<section class="group-wrap">
-    <h2 class="group-title">Observații vizuale</h2>
-    <p class="group-footer lead">Separate de relevanța comercială. Sunt descrieri ale capturilor, nu măsurători.</p>
-    <div class="compare-grid">${ownCard}${cards}</div>
-  </section>`;
-}
-
-function recommendationCard(item, index) {
-  const example = [item.example_headline, item.example_cta].filter(Boolean);
-  const assumptions = item.assumptions.map((text) => `<li>${icon('alert')}<span>${esc(text)}</span></li>`).join('');
-  return `<article class="surface card recommendation">
-    <div class="rec-head"><span class="rec-number" aria-hidden="true">${index + 1}</span>
-      <h3>${esc(item.problem)}</h3></div>
-    <div class="pills">${labelled(PRIORITIES, item.priority)}</div>
-    <p class="cites">${citations(item.evidence_ids)}</p>
-    <dl class="facts">
-      ${fact('Oportunitate', esc(item.opportunity))}
-      ${fact('Ce schimbi pe site', esc(item.website_change))}
-      ${fact('Beneficiu așteptat, ipoteză de testat', esc(item.expected_benefit_hypothesis))}
-    </dl>
-    ${example.length ? `<div class="variant"><i class="handle tl"></i><i class="handle tr"></i><i class="handle bl"></i><i class="handle br"></i>
-      ${item.example_headline ? `<strong>${esc(item.example_headline)}</strong>` : ''}
-      ${item.example_cta ? `<span class="variant-cta">${esc(item.example_cta)}</span>` : ''}</div>` : ''}
-    ${assumptions ? `<h4>Presupuneri de verificat</h4><ul class="assumptions">${assumptions}</ul>` : ''}
-  </article>`;
-}
-
-function recommendationsSection(result, finished) {
-  const body = result.recommendations.length
-    ? result.recommendations.map(recommendationCard).join('')
-    : finished ? emptyState('Nicio recomandare', 'Scriem recomandări doar când există dovezi salvate.') : '';
-  return `<section class="group-wrap" id="recomandari">
-    <h2 class="group-title">Trei recomandări prioritizate</h2>
-    ${body}
-    ${result.recommendations.length ? '<p class="group-footer">Ce observi la un competitor e un semnal de investigat, nu dovadă că i-au crescut vânzările.</p>' : ''}
-  </section>`;
-}
-
-function evidenceSection(result) {
-  if (!result.evidence.length) return '';
-  const rows = result.evidence.map((item) => `<li id="${esc(item.id)}">
-    <span class="cite static">${esc(item.id)}</span>
-    <span class="row-main"><span>${esc(item.quote)}</span>
-    <span class="sub">${esc(item.field)} · ${esc(when(item.captured_at))}</span>
-    ${external(item.url, item.domain)}</span></li>`).join('');
-  return `<section class="group-wrap">
-    <details class="surface skipped"><summary>${icon('chevron')}Toate dovezile (${result.evidence.length})</summary>
-      <ul class="evidence-list">${rows}</ul></details>
-  </section>`;
-}
-
-function notices(job) {
-  const errors = job.errors.map((error) => `<p class="banner" role="alert">${icon('alert')}<span>${esc(error.message)}</span></p>`);
-  const warnings = job.warnings.map((text) => `<p class="banner">${icon('alert')}<span>${esc(text)}</span></p>`);
-  return [...errors, ...warnings].join('');
+    <div class="report-bar">${openSite}</div>`;
 }
 
 export function missingView(message) {
-  return `${hero({ tone: 'aqua', object: 'lens', lines: ['Raport', 'indisponibil'], sub: message })}`;
+  return `<section class="phone current" data-look="violet" data-section="overview">${stageView()}
+    <div class="scroller"><div class="stage-space"></div>${aquaCard('Report unavailable')}
+      <div class="on-violet"><p class="lede">${esc(message)}</p></div></div></section>`;
 }
 
-export function reportView(job, { notice = '' } = {}) {
-  const { result } = job;
+export function reportNavView(current) {
+  return SECTIONS.map((item) => chipButton(item, current, 'section')).join('');
+}
+
+function phone(section, look, current, html) {
+  return `<section class="phone${section === current ? ' current' : ''}" data-look="${look}" data-section="${section}" aria-label="${esc(section)}">${html}</section>`;
+}
+
+export function reportView(job, { notice = '', section: current = 'overview', busy = false, priority = null } = {}) {
   const finished = ['done', 'partial', 'failed'].includes(job.status);
-  const name = result.profile?.business_name ?? 'Analizăm site-ul';
-  return `
-    ${hero({
-      tone: 'aqua',
-      object: 'lens',
-      lines: ['Raportul', 'pieței tale'],
-      sub: name,
-      cta: `<div class="pills">${pill(job.label, job.label === 'LIVE' ? 'ok' : 'warn')}${analysisPill(job.status)}</div>`,
-    })}
-    ${notice ? `<p class="banner" role="alert">${icon('alert')}<span>${esc(notice)}</span></p>` : ''}
-    ${notices(job)}
-    ${finished ? '' : `<section class="surface card" aria-live="polite"><strong>Progres</strong>${stepsView(job.steps)}
-      <p class="meta">Poți închide panoul. Analiza continuă pe server.</p></section>`}
-    <section id="rezumat">${summarySection(result)}${marketSection(result)}</section>
-    ${competitorsSection(result, finished)}
-    ${positioningSection(result)}
-    ${visualSection(result)}
-    ${recommendationsSection(result, finished)}
-    ${evidenceSection(result)}
-    ${finished ? `<details class="surface skipped"><summary>${icon('chevron')}Cum a decurs analiza</summary>${stepsView(job.steps)}</details>` : ''}`;
+  return `${phone('competitors', 'left', current, competitorsPhone(job, finished))}
+    ${phone('overview', 'violet', current, overviewPhone(job, { notice, busy, finished }))}
+    ${phone('actions', 'right', current, actionsPhone(job, finished, priority))}`;
 }
 
-export function dockView(job, busy, active) {
-  const items = SECTIONS.map((section, index) => `<button type="button" data-section="${section.id}"
-    ${index === active ? 'aria-current="true"' : ''}>${icon(section.icon)}<span>${section.label}</span></button>`);
-  const running = job && !['done', 'partial', 'failed'].includes(job.status);
-  const fab = `<button type="button" class="fab" data-action="rerun" aria-label="Reanalizează piața" ${busy || running || !job ? 'disabled' : ''}>
-    ${busy || running ? '<span class="spinner" aria-hidden="true"></span>' : icon('refresh')}</button>`;
-  return `${items.slice(0, 2).join('')}${fab}${items.slice(2).join('')}`;
+export function competitorSheet(job, index) {
+  const item = job.result.competitors[index];
+  if (!item) return sheetFrame('Competitor', '<p>This competitor is no longer available.</p>');
+  const shot = SAFE_IMAGE.test(item.screenshot_data_url ?? '')
+    ? `<img class="shot" src="${item.screenshot_data_url}" alt="First screen of ${esc(item.name)}">`
+    : '';
+  const ids = [...new Set([...item.evidence_ids, ...(item.positioning?.evidence_ids ?? []), ...(item.visual?.evidence_ids ?? [])])];
+  return sheetFrame(item.name, `
+    ${shot}
+    <div class="pills">${labelled(COMPETITOR_TYPES, item.category)}${labelled(COMPETITOR_MARKETS, item.market_status)}</div>
+    <p>${external(item.url, host(item.url))}</p>
+    <p>${esc(item.why_relevant)}</p>
+    ${item.positioning ? fact('Positioning', item.positioning.text) : ''}
+    ${item.visual ? fact('Look and feel', item.visual.text) : ''}
+    ${sourcesChip(ids)}`);
 }
 
-export { safeUrl };
+export function recommendationSheet(job, index) {
+  const item = job.result.recommendations[index];
+  if (!item) return sheetFrame('Action', '<p>This recommendation is no longer available.</p>');
+  const example = item.example_headline || item.example_cta
+    ? `<div class="variant">
+      ${item.example_headline ? `<strong>${esc(item.example_headline)}</strong>` : ''}
+      ${item.example_cta ? `<span class="variant-cta">${esc(item.example_cta)}</span>` : ''}</div>`
+    : '';
+  const assumptions = item.assumptions.length
+    ? `<p><span class="field-label">Check first</span>${item.assumptions.map(esc).join(' ')}</p>`
+    : '';
+  return sheetFrame('Recommended action', `
+    <div class="pills">${labelled(PRIORITIES, item.priority)}</div>
+    <p><strong>${esc(item.problem)}</strong></p>
+    ${fact('What to change', item.website_change)}
+    ${example}
+    ${fact('Hypothesis to test', item.expected_benefit_hypothesis)}
+    ${assumptions}
+    ${sourcesChip(item.evidence_ids)}`);
+}
+
+export function sourcesSheet(job, ids) {
+  const rows = ids.map((id) => job.result.evidence.find((item) => item.id === id)).filter(Boolean)
+    .map((item) => `<div class="source">
+      <span class="source-quote">${esc(item.quote)}</span>
+      <span class="sub">${esc(item.field)} · ${esc(when(item.captured_at))}</span>
+      ${external(item.url, host(item.url))}</div>`).join('');
+  return sheetFrame('Sources', section('', rows || '<div class="source">No saved source.</div>'));
+}
+
+export function skippedSheet(job) {
+  const rows = job.result.skipped.map((item) => `<div class="row">${avatar(item.domain)}
+    <div class="row-main"><strong>${esc(item.domain)}</strong><span class="sub">${esc(item.reason)}</span></div>
+    ${labelled(SKIPPED, item.status)}</div>`).join('');
+  return sheetFrame('Sites we left out', section('', rows));
+}

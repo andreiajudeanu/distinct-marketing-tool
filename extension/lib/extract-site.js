@@ -34,35 +34,6 @@
     return unique(found).slice(0, 20);
   }
 
-  function pageStructure() {
-    const root = document.querySelector('main') ?? document.body;
-    return [...root.children].filter(shown).slice(0, 15).map((element) => {
-      const heading = element.querySelector('h1, h2, h3');
-      const name = element.tagName.toLowerCase();
-      return heading ? `${name}: ${clean(heading.innerText).slice(0, 60)}` : name;
-    });
-  }
-
-  function toHex(color) {
-    const parts = color.match(/[\d.]+/g)?.map(Number) ?? [];
-    if (parts.length < 3 || parts[3] === 0) return '';
-    return `#${parts.slice(0, 3).map((part) => Math.round(part).toString(16).padStart(2, '0')).join('')}`;
-  }
-
-  function palette() {
-    const elements = [document.body, ...document.querySelectorAll('header, h1, button, a[class*="btn" i], a[class*="button" i], footer')]
-      .filter(Boolean).slice(0, 30);
-    return unique(elements.flatMap((element) => {
-      const style = getComputedStyle(element);
-      return [toHex(style.backgroundColor), toHex(style.color)];
-    })).slice(0, 8);
-  }
-
-  function fonts() {
-    const elements = [document.body, document.querySelector('h1')].filter(Boolean);
-    return unique(elements.map((element) => getComputedStyle(element).fontFamily.split(',')[0].replace(/["']/g, '').trim()));
-  }
-
   function structuredData() {
     const found = { currency: '', shipsTo: [], addressCountry: '' };
     const visit = (node) => {
@@ -101,11 +72,7 @@
     lang: (document.documentElement.lang ?? '').slice(0, 20),
     headings: texts('h1, h2, h3', 20),
     cta_texts: callsToAction(),
-    nav_labels: texts('nav a', 20, 40),
-    structure: pageStructure(),
     visible_text: visibleText,
-    colors: palette(),
-    fonts: fonts(),
     prices: unique((visibleText.match(PRICE) ?? []).map(clean)).slice(0, 8),
     currency: data.currency || meta('product:price:currency'),
     ships_to: unique(data.shipsTo).slice(0, 20),

@@ -11,7 +11,7 @@ export const isFinished = (status) => FINISHED.has(status);
 
 function errorText(detail) {
   if (typeof detail === 'string') return detail;
-  return 'Backendul a refuzat cererea.';
+  return 'The analysis server refused the request.';
 }
 
 export class BackendError extends Error {
@@ -26,7 +26,7 @@ async function request(path, options) {
   try {
     response = await fetch(`${BACKEND}${path}`, options);
   } catch {
-    throw new BackendError('Backendul de analiză nu răspunde. Pornește-l cu python backend/run.py.', 0);
+    throw new BackendError('The analysis server is not responding. Start it with npm run backend.', 0);
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new BackendError(errorText(data.detail), response.status);
@@ -39,6 +39,10 @@ export function startAnalysis(body) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
+}
+
+export function getHealth() {
+  return request('/api/health');
 }
 
 export function getAnalysis(jobId, { screenshots = false } = {}) {

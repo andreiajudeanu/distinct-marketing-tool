@@ -59,14 +59,14 @@ async def robots_allowed(url: str, policy: UrlPolicy = check_public_url) -> tupl
         except UnsafeUrl as error:
             return False, str(error)
         except httpx.HTTPError:
-            return False, "robots.txt nu a putut fi citit."
+            return False, "robots.txt could not be read."
     if response.status_code >= 500 or response.is_redirect:
-        return False, "robots.txt nu a putut fi citit."
+        return False, "robots.txt could not be read."
     if response.status_code >= 400:
         return True, ""
     parser = RobotFileParser()
     parser.parse(response.text.splitlines())
-    return (True, "") if parser.can_fetch(AGENT_TOKEN, url) else (False, "Site-ul interzice accesul prin robots.txt.")
+    return (True, "") if parser.can_fetch(AGENT_TOKEN, url) else (False, "The site disallows access in robots.txt.")
 
 
 def _capture(raw: dict, status: int, screenshot: bytes | None) -> PageCapture:
@@ -91,10 +91,16 @@ async def _walk_redirects(context, url: str, policy: UrlPolicy):
         await response.dispose()
         current = urljoin(current, location)
         await policy(current)
-    raise UnsafeUrl("Prea multe redirecționări.")
+    raise UnsafeUrl("Too many redirects.")
 
 
 async def _guard_requests(context, policy: UrlPolicy, unsafe: list[str]) -> None:
+    async def guard_safely(route: Route) -> None:
+        try:
+            await guard(route)
+        except PlaywrightError:
+            pass  # The page closed while this request was waiting. Nothing is left to do.
+
     async def guard(route: Route) -> None:
         request = route.request
         if request.url.startswith(("data:", "blob:")):
@@ -127,7 +133,7 @@ async def _guard_requests(context, policy: UrlPolicy, unsafe: list[str]) -> None
         else:
             await route.continue_()
 
-    await context.route("**/*", guard)
+    await context.route("**/*", guard_safely)
 
 
 async def fetch_one(
@@ -163,19 +169,19 @@ async def fetch_one(
         try:
             response = await page.goto(url, wait_until="domcontentloaded", timeout=config.PAGE_TIMEOUT_MS)
         except PlaywrightTimeout:
-            return FetchedPage(url, url, "failed", "Pagina nu s-a încărcat la timp.")
+            return FetchedPage(url, url, "failed", "The page did not load in time.")
         except PlaywrightError:
             if unsafe:
-                return FetchedPage(url, url, "unsafe", "Pagina redirecționează spre o adresă nepermisă.")
-            return FetchedPage(url, url, "failed", "Pagina nu a putut fi deschisă.")
+                return FetchedPage(url, url, "unsafe", "The page redirects to a forbidden address.")
+            return FetchedPage(url, url, "failed", "The page could not be opened.")
         if response is None:
-            return FetchedPage(url, url, "failed", "Pagina nu a răspuns.")
+            return FetchedPage(url, url, "failed", "The page did not respond.")
 
         status = response.status
         if status in GONE_STATUSES:
-            return FetchedPage(url, page.url, "unavailable", "Pagină indisponibilă.")
+            return FetchedPage(url, page.url, "unavailable", "Page unavailable.")
         if status in BLOCKED_STATUSES:
-            return FetchedPage(url, page.url, "blocked", f"Site-ul a refuzat accesul ({status}).")
+            return FetchedPage(url, page.url, "blocked", f"The site refused access ({status}).")
 
         try:
             await page.wait_for_load_state("networkidle", timeout=SETTLE_TIMEOUT_MS)
@@ -184,7 +190,7 @@ async def fetch_one(
 
         raw = await page.evaluate(script)
         if raw.get("challenge"):
-            return FetchedPage(url, page.url, "blocked", "Site-ul cere o verificare anti-robot.")
+            return FetchedPage(url, page.url, "blocked", "The site asks for an anti-bot check.")
         shot = await page.screenshot(type="jpeg", quality=JPEG_QUALITY, full_page=False)
         if checks:
             await asyncio.gather(*checks)
@@ -193,10 +199,10 @@ async def fetch_one(
         except UnsafeUrl:
             unsafe.append(page.url)
         if unsafe:
-            return FetchedPage(url, page.url, "unsafe", "Pagina redirecționează spre o adresă nepermisă.")
+            return FetchedPage(url, page.url, "unsafe", "The page redirects to a forbidden address.")
         return FetchedPage(url, page.url, "ok", "", _capture(raw, status, shot))
     except (PlaywrightError, ValidationError):
-        return FetchedPage(url, url, "failed", "Pagina nu a putut fi citită.")
+        return FetchedPage(url, url, "failed", "The page could not be read.")
     finally:
         await context.close()
 
@@ -221,6 +227,6 @@ async def fetch_pages(
         if "Executable doesn't exist" in str(error):
             raise AnalysisError(
                 "browser_missing",
-                "Lipsește browserul. Rulează: python -m playwright install chromium-headless-shell",
+                "The browser is missing. Run: python -m playwright install chromium-headless-shell",
             ) from error
-        raise AnalysisError("browser_failed", "Browserul de analiză nu a pornit.") from error
+        raise AnalysisError("browser_failed", "The analysis browser did not start.") from error

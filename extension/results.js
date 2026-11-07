@@ -1,59 +1,41 @@
 import {
   BackendError, getAnalysis, isFinished, JOB_KEY, POLL_MS, REPORT_KEY, startAnalysis,
 } from './lib/analysis.js';
-import { dockView, missingView, reportView, SECTIONS } from './ui/report.js';
+import { hideSheet, showSheet, watchSheetDrag } from './ui/sheet.js';
+import { initTheme } from './ui/theme.js';
+import {
+  competitorSheet, missingView, recommendationSheet, reportNavView, reportView, SECTIONS,
+  skippedSheet, sourcesSheet,
+} from './ui/report.js';
 
 const report = document.getElementById('report');
-const dock = document.getElementById('dock-items');
-const indicator = document.getElementById('tab-indicator');
-const mode = document.getElementById('mode');
-const scroller = document.getElementById('scroller');
-const navbar = document.querySelector('.navbar');
-const SECTION_LINE_PX = 140;
+const nav = document.getElementById('report-nav');
+const sheet = document.getElementById('sheet');
 
 let job = null;
 let busy = false;
 let notice = '';
-let active = 0;
+let current = 'overview';
+let priority = null;
+let windowId;
 let pollTimer;
 
-function placeIndicator() {
-  indicator.style.setProperty('--index', active < 2 ? active : active + 1);
-}
-
-function paintDock() {
-  dock.innerHTML = dockView(job, busy, active);
-  placeIndicator();
-}
-
-// Scrolling only moves the indicator. Rebuilding the dock here could swallow a click.
-function followScroll() {
-  navbar.classList.toggle('scrolled', scroller.scrollTop > 8);
-  const line = scroller.getBoundingClientRect().top + SECTION_LINE_PX;
-  const passed = SECTIONS.map((item, index) => ({ index, node: document.getElementById(item.id) }))
-    .filter(({ node }) => node && node.getBoundingClientRect().top <= line);
-  const next = passed.at(-1)?.index ?? 0;
-  if (next === active) return;
-  active = next;
-  placeIndicator();
-  dock.querySelectorAll('button[data-section]').forEach((node, index) => {
-    node.toggleAttribute('aria-current', index === active);
-    if (index === active) node.setAttribute('aria-current', 'true');
-  });
-}
-
-// Rebuilding the page would close open details and move focus, so it happens
-// only when the job changed, never on a timer alone.
+// Each phone scrolls on its own, so every one keeps its place across a repaint.
 function paint() {
-  const open = [...report.querySelectorAll('details[open] > summary')].map((node) => node.textContent);
-  const top = scroller.scrollTop;
-  report.innerHTML = job ? reportView(job, { notice }) : missingView(notice);
-  report.querySelectorAll('details > summary').forEach((node) => {
-    if (open.includes(node.textContent)) node.parentElement.open = true;
+  const scroll = new Map([...report.querySelectorAll('.phone')]
+    .map((item) => [item.dataset.section, item.querySelector('.scroller')?.scrollTop ?? 0]));
+  report.innerHTML = job ? reportView(job, { notice, section: current, busy, priority }) : missingView(notice);
+  nav.innerHTML = reportNavView(current);
+  report.querySelectorAll('.phone').forEach((item) => {
+    const scroller = item.querySelector('.scroller');
+    if (scroller) scroller.scrollTop = scroll.get(item.dataset.section) ?? 0;
   });
-  scroller.scrollTop = top;
-  mode.textContent = job?.label ?? '';
-  paintDock();
+}
+
+function updateAddress() {
+  const params = new URLSearchParams({ section: current });
+  if (job?.job_id) params.set('job', job.job_id);
+  history.replaceState(null, '', `results.html?${params}`);
 }
 
 async function saveReport(full) {
@@ -65,9 +47,21 @@ async function saveReport(full) {
 }
 
 async function finish(jobId) {
-  const full = await getAnalysis(jobId, { screenshots: true });
-  job = full;
-  await saveReport(full);
+  job = await getAnalysis(jobId, { screenshots: true });
+  await saveReport(job);
+  paint();
+}
+
+async function showSaved(jobId, message) {
+  const stored = await chrome.storage.local.get(REPORT_KEY);
+  const saved = stored[REPORT_KEY];
+  if (saved?.job_id === jobId) {
+    job = saved;
+    notice = '';
+  } else {
+    job = null;
+    notice = `${message} Start a new analysis from the panel.`;
+  }
   paint();
 }
 
@@ -80,10 +74,11 @@ async function poll(jobId) {
       await finish(jobId);
       return;
     }
+    // Rebuilding the page would interrupt the reader, so it happens only on real changes.
     if (changed) paint();
   } catch (error) {
     if (error instanceof BackendError && error.status === 404) {
-      await showSaved(jobId, 'Analiza nu mai e pe server.');
+      await showSaved(jobId, 'This analysis is no longer on the server.');
       return;
     }
     notice = error.message;
@@ -92,47 +87,29 @@ async function poll(jobId) {
   pollTimer = setTimeout(() => poll(jobId), POLL_MS);
 }
 
-async function showSaved(jobId, message) {
-  const stored = await chrome.storage.local.get(REPORT_KEY);
-  const saved = stored[REPORT_KEY];
-  if (saved?.job_id === jobId) {
-    job = saved;
-    notice = '';
-  } else {
-    job = null;
-    notice = `${message} Pornește o analiză nouă din panou.`;
-  }
-  paint();
-}
-
-function watch(jobId) {
-  clearTimeout(pollTimer);
-  history.replaceState(null, '', `results.html?job=${encodeURIComponent(jobId)}`);
-  poll(jobId);
-}
-
 async function rerun() {
-  const country = document.getElementById('market-country')?.value.trim() ?? '';
-  const language = document.getElementById('market-language')?.value.trim() ?? '';
-  if (country && !/^[a-zA-Z]{2}$/.test(country)) {
-    notice = 'Țara se scrie cu două litere, de exemplu RO.';
+  const country = document.getElementById('market-country')?.value ?? '';
+  const language = document.getElementById('market-language')?.value ?? '';
+  const market = job.result.market;
+  const corrected = country && (country !== market?.country_code || language !== market?.language);
+  if (!corrected) {
+    notice = 'Choose a different country or language first.';
     paint();
     return;
   }
-  const market = job.result.market;
-  const corrected = country && (country.toUpperCase() !== market?.country_code || language.toLowerCase() !== market?.language);
+  clearTimeout(pollTimer);
   busy = true;
   notice = '';
-  paintDock();
+  paint();
   try {
     const next = await startAnalysis({
       rerun_of: job.job_id,
-      market_override: corrected ? { country_code: country, language } : null,
+      market_override: { country_code: country, language },
     });
     job = next;
+    updateAddress();
     await chrome.storage.local.set({ [JOB_KEY]: { jobId: next.job_id, url: next.result.profile?.url ?? '' } });
-    watch(next.job_id);
-    scroller.scrollTo({ top: 0 });
+    poll(next.job_id);
   } catch (error) {
     notice = error.message;
   } finally {
@@ -141,25 +118,59 @@ async function rerun() {
   }
 }
 
+const sheets = {
+  'open-sources': (dataset) => sourcesSheet(job, dataset.ids.split(',')),
+  'open-competitor': (dataset) => competitorSheet(job, Number(dataset.index)),
+  'open-recommendation': (dataset) => recommendationSheet(job, Number(dataset.index)),
+  'open-skipped': () => skippedSheet(job),
+};
+
+const LARGE_SHEETS = new Set(['open-competitor', 'open-recommendation']);
+
 document.addEventListener('click', (event) => {
-  if (event.target.closest('button[data-action="rerun"]') && job && !busy) {
-    rerun();
+  if (event.target === sheet) {
+    hideSheet(sheet);
     return;
   }
-  const section = event.target.closest('button[data-section]');
-  if (!section) return;
-  active = SECTIONS.findIndex((item) => item.id === section.dataset.section);
-  paintDock();
-  document.getElementById(section.dataset.section)?.scrollIntoView({ block: 'start' });
+  const segment = event.target.closest('button[data-section]');
+  if (segment) {
+    current = segment.dataset.section;
+    updateAddress();
+    paint();
+    return;
+  }
+  const filter = event.target.closest('button[data-priority]');
+  if (filter) {
+    priority = priority === filter.dataset.priority ? null : filter.dataset.priority;
+    paint();
+    return;
+  }
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  const { action } = button.dataset;
+  if (action === 'close-sheet') hideSheet(sheet);
+  // Chrome only opens the panel inside the click, before any await.
+  else if (action === 'open-panel') {
+    chrome.sidePanel.open({ windowId }).catch(() => {
+      notice = 'Click the extension icon to open the panel.';
+      paint();
+    });
+  }
+  else if (action === 'rerun' && job && !busy) rerun();
+  else if (sheets[action]) showSheet(sheet, sheets[action](button.dataset), LARGE_SHEETS.has(action) ? 'large' : 'medium');
 });
 
 async function start() {
-  scroller.addEventListener('scroll', followScroll, { passive: true });
+  await initTheme();
+  windowId = (await chrome.tabs.getCurrent())?.windowId;
+  watchSheetDrag(sheet, () => hideSheet(sheet));
+  const params = new URLSearchParams(location.search);
+  if (SECTIONS.some((item) => item.id === params.get('section'))) current = params.get('section');
   paint();
   const stored = await chrome.storage.local.get(JOB_KEY);
-  const jobId = new URLSearchParams(location.search).get('job') ?? stored[JOB_KEY]?.jobId;
+  const jobId = params.get('job') ?? stored[JOB_KEY]?.jobId;
   if (!jobId) {
-    notice = 'Nu există încă nicio analiză. Pornește una din panou.';
+    notice = 'No analysis yet. Start one from the panel.';
     paint();
     return;
   }

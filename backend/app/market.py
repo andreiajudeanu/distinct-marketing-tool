@@ -9,6 +9,15 @@ import re
 from .schemas import LlmProfile, MarketDetection, MarketOverride, MarketSignal, PageCapture
 from .text import hostname, quote_in_text
 
+KIND_ADDRESS = "address in structured data"
+KIND_SHIPPING = "delivery in structured data"
+KIND_CURRENCY = "currency"
+KIND_OG_LOCALE = "og:locale"
+KIND_HREFLANG = "hreflang"
+KIND_LANGUAGE = "page language"
+KIND_DOMAIN = "domain"
+KIND_QUOTE = "text on the page"
+
 SINGLE_COUNTRY_CURRENCY = {
     "RON": "RO", "GBP": "GB", "PLN": "PL", "HUF": "HU", "CZK": "CZ", "BGN": "BG",
     "SEK": "SE", "DKK": "DK", "NOK": "NO", "CHF": "CH", "USD": "US", "CAD": "CA",
@@ -36,28 +45,30 @@ def region_of(locale: str) -> str:
 def collect_signals(page: PageCapture) -> list[MarketSignal]:
     signals: list[MarketSignal] = []
     if page.address_country:
-        signals.append(MarketSignal(kind="adresă în date structurate", value=page.address_country, strength="strong"))
+        signals.append(MarketSignal(kind=KIND_ADDRESS, value=page.address_country, strength="strong"))
     for destination in page.ships_to[:6]:
-        signals.append(MarketSignal(kind="livrare în date structurate", value=destination, strength="strong"))
+        signals.append(MarketSignal(kind=KIND_SHIPPING, value=destination, strength="strong"))
     if page.currency:
-        signals.append(MarketSignal(kind="monedă", value=page.currency.upper(), strength="medium"))
+        signals.append(MarketSignal(kind=KIND_CURRENCY, value=page.currency.upper(), strength="medium"))
     if region_of(page.og_locale):
-        signals.append(MarketSignal(kind="og:locale", value=page.og_locale, strength="medium"))
-    for locale in page.hreflang[:6]:
-        if region_of(locale):
-            signals.append(MarketSignal(kind="hreflang", value=locale, strength="medium"))
+        signals.append(MarketSignal(kind=KIND_OG_LOCALE, value=page.og_locale, strength="medium"))
+    # Several regions mean translations of one site, not a market. Only one region is a signal.
+    regional = [locale for locale in page.hreflang if region_of(locale)]
+    strength = "medium" if len({region_of(locale) for locale in regional}) == 1 else "weak"
+    for locale in regional[:6]:
+        signals.append(MarketSignal(kind=KIND_HREFLANG, value=locale, strength=strength))
     if page.lang:
-        signals.append(MarketSignal(kind="limba paginii", value=page.lang, strength="weak"))
+        signals.append(MarketSignal(kind=KIND_LANGUAGE, value=page.lang, strength="weak"))
     domain = hostname(page.url)
     if "." in domain:
-        signals.append(MarketSignal(kind="domeniu", value=f".{domain.rsplit('.', 1)[-1]}", strength="weak"))
+        signals.append(MarketSignal(kind=KIND_DOMAIN, value=f".{domain.rsplit('.', 1)[-1]}", strength="weak"))
     return signals
 
 
 def _signal_country(signal: MarketSignal) -> str:
-    if signal.kind == "monedă":
+    if signal.kind == KIND_CURRENCY:
         return SINGLE_COUNTRY_CURRENCY.get(signal.value, "")
-    if signal.kind in ("og:locale", "hreflang"):
+    if signal.kind in (KIND_OG_LOCALE, KIND_HREFLANG):
         return region_of(signal.value)
     if signal.strength == "strong":
         return country_code(signal.value)
@@ -78,13 +89,13 @@ def detect_market(page: PageCapture, profile: LlmProfile, override: MarketOverri
             language=(override.language or language)[:2].lower(),
             status="corrected",
             signals=signals,
-            note="Piață corectată de tine.",
+            note="Market corrected by you.",
         )
 
     guess = country_code(profile.country_code)
     quote_ok = bool(guess) and quote_in_text(profile.country_quote, _page_text(page))
     if quote_ok:
-        signals.insert(0, MarketSignal(kind="text de pe pagină", value=profile.country_quote[:160], strength="strong"))
+        signals.insert(0, MarketSignal(kind=KIND_QUOTE, value=profile.country_quote[:160], strength="strong"))
 
     support = [signal for signal in signals if signal.strength != "weak" and _signal_country(signal)]
     if not guess and support:
@@ -95,14 +106,14 @@ def detect_market(page: PageCapture, profile: LlmProfile, override: MarketOverri
     if guess and backed:
         return MarketDetection(
             country_code=guess, language=language, status="detected", signals=signals,
-            note="Dedusă din semnalele de mai jos. Corecteaz-o dacă e greșită.",
+            note="Inferred from your page. Correct it if it is wrong.",
         )
     if guess:
         return MarketDetection(
             country_code=guess, language=language, status="unconfirmed", signals=signals,
-            note="Piață neconfirmată: nu am găsit livrare, adresă sau monedă care să o susțină.",
+            note="Market unconfirmed: no delivery, address or currency supports it.",
         )
     return MarketDetection(
         country_code="", language=language, status="unknown", signals=signals,
-        note="Nu am găsit semnale de piață. Limba și domeniul nu stabilesc o țară.",
+        note="No market signals found. Language and domain do not set a country.",
     )

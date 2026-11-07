@@ -10,28 +10,28 @@ export function setPhase(phase) {
 const SHOPS = {
   shop: {
     brand: 'Atelier Aroma',
-    product: 'Parfum Santal Nocturn 50 ml',
+    product: 'Nocturne Sandalwood Perfume 50 ml',
     price: 349,
-    description: 'Parfum nișă cu santal și vanilie afumată.',
-    offers: ['Livrare gratuită peste 250 lei', 'Retur gratuit în 14 zile'],
+    description: 'Niche perfume with sandalwood and smoked vanilla.',
+    offers: ['Free shipping over 250 lei', 'Free returns within 14 days'],
     accent: '#7a3e1d',
   },
   'rival-a': {
     brand: 'Casa de Parfum',
-    product: 'Parfum Lemn de Oud 50 ml',
+    product: 'Oud Wood Perfume 50 ml',
     price: 329,
-    description: 'Parfum nișă cu oud și ambră.',
-    offers: ['Livrare gratuită peste 300 lei'],
-    afterOffers: ['Livrare gratuită peste 300 lei', 'Set de 3 mostre de 2 ml la 39 lei'],
+    description: 'Niche perfume with oud and amber.',
+    offers: ['Free shipping over 300 lei'],
+    afterOffers: ['Free shipping over 300 lei', 'Set of 3 samples of 2 ml for 39 lei'],
     accent: '#27504a',
   },
   'rival-b': {
-    brand: 'Nota Lemnoasă',
-    product: 'Parfum Cedru Alb 50 ml',
+    brand: 'Nota Lemnoasa',
+    product: 'White Cedar Perfume 50 ml',
     price: 365,
-    description: 'Parfum lemnos cu cedru și iris.',
-    offers: ['Retur gratuit în 30 de zile'],
-    afterOffers: ['Retur gratuit în 30 de zile', 'Pachet de descoperire: 5 mostre la 59 lei'],
+    description: 'Woody perfume with cedar and iris.',
+    offers: ['Free returns within 30 days'],
+    afterOffers: ['Free returns within 30 days', 'Discovery bundle: 5 samples for 59 lei'],
     accent: '#3d3a78',
   },
 };
@@ -42,7 +42,7 @@ function jsonLd({ name, brand, description, price, currency, country }) {
     '@type': 'Product',
     name,
     brand: { '@type': 'Brand', name: brand },
-    category: 'Parfumuri',
+    category: 'Perfumes',
     description,
     offers: {
       '@type': 'Offer',
@@ -57,8 +57,8 @@ function jsonLd({ name, brand, description, price, currency, country }) {
   });
 }
 
-function layout({ lang = 'ro', title, accent, brand, product, price, description, offers, extra = '', ld }) {
-  const today = new Date().toLocaleDateString('ro-RO');
+function layout({ lang = 'en', title, accent, brand, product, price, description, offers, extra = '', ld }) {
+  const today = new Date().toLocaleDateString('en-GB');
   return `<!doctype html>
 <html lang="${lang}">
 <head>
@@ -85,18 +85,18 @@ function layout({ lang = 'ro', title, accent, brand, product, price, description
 <body>
 <nav>${brand}</nav>
 <main>
-  <div class="bottle" role="img" aria-label="Flacon de parfum"></div>
+  <div class="bottle" role="img" aria-label="Perfume bottle"></div>
   <section>
     <h1>${product}</h1>
     <p>${description}</p>
     <div class="price">${price}</div>
     <ul>${offers.map((offer) => `<li>${offer}</li>`).join('')}</ul>
     ${extra}
-    <button type="button">Adaugă în coș</button>
+    <button type="button">Add to cart</button>
   </section>
 </main>
-<footer>© ${brand}. Pagină demonstrativă fictivă, actualizată la ${today}.</footer>
-<div class="cookie">Folosim cookie-uri pentru livrare gratuită de conținut.</div>
+<footer>© ${brand}. Fictional demo page, updated ${today}.</footer>
+<div class="cookie">We use cookies to deliver content.</div>
 </body>
 </html>`;
 }
@@ -121,18 +121,18 @@ function shopPage(key) {
 
 function marketplacePage() {
   const extra = ['Parfumeria Nord', 'Beauty Depot', 'Lux Outlet']
-    .map((seller, index) => `<p>Vândut de ${seller}: ${319 + index * 12} lei</p>`).join('');
+    .map((seller, index) => `<p>Sold by ${seller}: ${319 + index * 12} lei</p>`).join('');
   return layout({
-    title: 'Parfum Oud 50 ml | Piața Mare',
+    title: 'Oud Perfume 50 ml | Big Market',
     accent: '#a12b2b',
-    brand: 'Piața Mare',
-    product: 'Parfum Oud 50 ml',
-    price: 'de la 319 lei',
-    description: 'Oferte de la mai mulți vânzători.',
-    offers: ['Livrare în 24 de ore'],
+    brand: 'Big Market',
+    product: 'Oud Perfume 50 ml',
+    price: 'from 319 lei',
+    description: 'Offers from several sellers.',
+    offers: ['Delivery in 24 hours'],
     extra,
     ld: jsonLd({
-      name: 'Parfum Oud 50 ml', brand: 'Diverse', description: 'Oferte de la mai mulți vânzători.',
+      name: 'Parfum Oud 50 ml', brand: 'Diverse', description: 'Offers from several sellers.',
       price: 319, currency: 'RON', country: 'RO',
     }),
   });
@@ -155,19 +155,19 @@ function foreignPage() {
   });
 }
 
-const BLOCKED_PAGE = `<!doctype html><html lang="ro"><head><meta charset="utf-8">
-<title>Acces refuzat</title></head><body><h1>Acces refuzat</h1>
-<p>Pagina demonstrativă simulează un magazin care blochează accesul.</p></body></html>`;
+const BLOCKED_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Access denied</title></head><body><h1>Access denied</h1>
+<p>This demo page simulates a store that blocks access.</p></body></html>`;
 
 function controlPage() {
-  return `<!doctype html><html lang="ro"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>Control demo</title>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Demo control</title>
 <style>body{max-width:520px;margin:48px auto;padding:0 16px;font:16px/1.5 system-ui,sans-serif}
 button{margin:0 8px 8px 0;padding:10px 14px;font:inherit;cursor:pointer}</style></head>
-<body><h1>Control demo</h1>
-<p>Stare rivali: <strong id="phase">${state.phase}</strong></p>
-<button data-phase="before">Înainte</button><button data-phase="after">După</button>
-<p><a href="/demo/shop">Deschide magazinul de test</a></p>
+<body><h1>Demo control</h1>
+<p>Rival state: <strong id="phase">${state.phase}</strong></p>
+<button data-phase="before">Before</button><button data-phase="after">After</button>
+<p><a href="/demo/shop">Open the demo store</a></p>
 <script>
 document.querySelectorAll('button').forEach((button) => button.addEventListener('click', async () => {
   const response = await fetch('/demo/state', { method: 'POST', headers: { 'content-type': 'application/json' },
@@ -184,5 +184,5 @@ export function renderDemo(path) {
   if (route === 'foreign') return { status: 200, html: foreignPage() };
   if (route === 'rival-c') return { status: 403, html: BLOCKED_PAGE };
   if (route === 'control' || route === '') return { status: 200, html: controlPage() };
-  return { status: 404, html: '<!doctype html><title>Negăsit</title><h1>Pagină negăsită</h1>' };
+  return { status: 404, html: '<!doctype html><title>Not found</title><h1>Page not found</h1>' };
 }

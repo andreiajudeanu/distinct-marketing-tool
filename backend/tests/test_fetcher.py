@@ -1,4 +1,4 @@
-"""Phase 4: real Chromium against local servers.
+"""Real Chromium against local servers.
 
 The default policy refuses localhost, so these tests pass a policy that treats one
 local server as public and a second one as forbidden.
@@ -97,7 +97,7 @@ def sites():
 
     async def policy(url):
         if url.startswith(forbidden_origin):
-            raise UnsafeUrl("Adresa duce într-o rețea privată.")
+            raise UnsafeUrl("The address leads to a private network.")
 
     async def allow_all(url):
         return True, ""
@@ -121,7 +121,6 @@ def test_a_public_page_yields_text_design_signals_and_a_screenshot(sites):
     assert "Parfumuri nișă" in page.headings
     assert "Adaugă în coș" in page.cta_texts
     assert "Vezi colecția" in page.cta_texts
-    assert "#112233" in page.colors
     assert page.currency == "RON"
     assert page.ships_to == ["RO"]
     assert page.og_locale == "ro_RO"
@@ -161,7 +160,7 @@ def test_a_forbidden_start_address_opens_nothing(sites):
 def test_a_missing_page_is_unavailable_not_retired(sites):
     origin, _, policy, robots = sites
     result = fetch(f"{origin}/gone", policy, robots)
-    assert (result.status, result.reason) == ("unavailable", "Pagină indisponibilă.")
+    assert (result.status, result.reason) == ("unavailable", "Page unavailable.")
 
 
 def test_refusal_and_challenge_pages_are_blocked_without_a_workaround(sites):

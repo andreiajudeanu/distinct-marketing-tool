@@ -1,4 +1,4 @@
-"""Phase 3: search, filtering and triage. Tavily is faked at the HTTP layer."""
+"""Search, filtering and triage. Tavily is faked at the HTTP layer."""
 
 import asyncio
 import json
@@ -8,7 +8,7 @@ import pytest
 
 from app import discovery
 from app.discovery import (
-    Candidate, SearchHit, filter_hits, homepage_of, search_all, tavily_search, triage,
+    Candidate, SearchHit, filter_hits, homepage_of, search_all, tavily_search, triage, usable_queries,
 )
 from app.errors import AnalysisError
 from app.schemas import BusinessProfile, InferredText, LlmTriage, LlmTriagePick
@@ -21,8 +21,8 @@ def hit(url, title="Magazin", snippet="Vindem parfumuri"):
 def profile():
     text = InferredText(value="Parfumuri")
     return BusinessProfile(
-        url="https://own.ro/", domain="own.ro", title="", meta_description="", business_name="Own",
-        category=text, products=["Parfum"], value_proposition=text, target_audience=text, headings=[],
+        url="https://own.ro/", domain="own.ro", business_name="Own",
+        category=text, value_proposition=text, target_audience=text,
     )
 
 
@@ -59,9 +59,9 @@ def test_filter_drops_listicle_articles_but_keeps_homepages():
     assert [item.domain for item in kept] == ["top-parfum.ro"]
 
 
-def test_filter_caps_candidates_at_twenty():
+def test_filter_caps_candidates_at_fifteen():
     hits = [hit(f"https://rival{i}.ro/") for i in range(30)]
-    assert len(filter_hits(hits, "https://own.ro/")) == 20
+    assert len(filter_hits(hits, "https://own.ro/")) == 15
 
 
 @pytest.mark.parametrize("url, expected", [
@@ -73,14 +73,20 @@ def test_homepage_keeps_a_locale_prefix(url, expected):
     assert homepage_of(url) == expected
 
 
+def test_at_most_three_queries_and_empty_ones_are_refused():
+    assert usable_queries(["a", " ", "b", "c", "d"]) == ["a", "b", "c"]
+    with pytest.raises(AnalysisError):
+        usable_queries(["", " "])
+
+
 def test_triage_cannot_add_a_domain_search_did_not_return():
     candidates = [Candidate("rival.ro", "https://rival.ro/p", "https://rival.ro/", "R", "s", [])]
 
     async def fake_llm(**_):
         return LlmTriage(selected=[
-            LlmTriagePick(domain="inventat.ro", reason="x"),
+            LlmTriagePick(domain="invented.ro", reason="x"),
             LlmTriagePick(domain="www.rival.ro", reason="y"),
-            LlmTriagePick(domain="rival.ro", reason="dublură"),
+            LlmTriagePick(domain="rival.ro", reason="duplicate"),
         ])
 
     assert asyncio.run(triage(fake_llm, profile(), candidates)) == candidates
@@ -101,6 +107,7 @@ def test_tavily_request_uses_bearer_auth_and_boosts_the_market(monkeypatch):
     assert seen["auth"] == "Bearer test-key"
     assert seen["body"]["country"] == "romania"
     assert seen["body"]["search_depth"] == "basic"
+    assert seen["body"]["max_results"] == 5
     assert hits == [SearchHit("https://a.ro/", "A", "c")]
 
 
@@ -134,7 +141,7 @@ def test_tavily_retries_once_after_rate_limiting(monkeypatch):
 def test_one_failed_query_becomes_a_warning():
     async def search(query, country):
         if query == "rea":
-            raise AnalysisError("search_status", "Tavily a întors eroarea 500.")
+            raise AnalysisError("search_status", "Tavily returned error 500.")
         return [hit("https://a.ro/")]
 
     hits, warnings = asyncio.run(search_all(search, ["bună", "rea"], "RO"))
@@ -144,7 +151,7 @@ def test_one_failed_query_becomes_a_warning():
 
 def test_all_queries_failing_raises_instead_of_returning_nothing():
     async def search(query, country):
-        raise AnalysisError("search_auth", "Cheia Tavily din .env nu e acceptată.")
+        raise AnalysisError("search_auth", "The Tavily key in .env was not accepted.")
 
     with pytest.raises(AnalysisError):
         asyncio.run(search_all(search, ["a", "b"], "RO"))

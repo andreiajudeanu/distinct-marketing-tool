@@ -1,75 +1,60 @@
-// Deterministic stand-ins for the local demo shop. Results carry the SIMULAT label.
-// They are never used for a real site: a failed search must stay a visible failure.
+// Deterministic stand-ins for the local demo shop. Results carry the SIMULATED label.
+// They are never used for a real site: a failed call must stay a visible failure.
 
 export const isDemoUrl = (url) => /^https?:\/\/(localhost|127\.0\.0\.1)([:/]|$)/.test(url ?? '');
-
-export function discoveryMode(url, aiAvailable) {
-  if (isDemoUrl(url)) return 'simulated';
-  return aiAvailable ? 'live' : 'unavailable';
-}
 
 export function experimentMode(evidence, aiAvailable) {
   if (aiAvailable) return 'live';
   return evidence.every((item) => isDemoUrl(item.url)) ? 'simulated' : 'unavailable';
 }
 
-export function simulatedCandidates(base) {
-  return [
-    { url: `${base}/demo/rival-a`, title: 'Casa de Parfum', why: 'Vinde parfumuri nișă de 50 ml.' },
-    { url: `${base}/demo/rival-b`, title: 'Nota Lemnoasă', why: 'Vinde parfumuri lemnoase de 50 ml.' },
-    { url: `${base}/demo/rival-c`, title: 'Esență Rară', why: 'Vinde parfumuri nișă.' },
-    { url: `${base}/demo/marketplace`, title: 'Piața Mare', why: 'Listare de parfum cu mai mulți vânzători.' },
-    { url: `${base}/demo/foreign`, title: 'Maison Lumen', why: 'Parfumuri similare, altă piață.' },
-  ];
-}
-
 export function simulatedExperiment({ evidence, capabilities }) {
   const first = evidence[0];
   const claims = evidence.map((item) => ({
-    text: `${item.rival}: „${item.after ?? item.before}”.`,
+    text: `${item.rival}: "${item.after ?? item.before}".`,
     evidenceId: item.id,
   }));
   const shared = {
-    guardrailMetric: 'Valoarea medie a comenzii',
-    stopCondition: 'Oprești dacă valoarea medie a comenzii scade cu peste 10% după două săptămâni complete.',
+    guardrailMetric: 'Average order value',
+    stopCondition: 'Stop if average order value falls by more than 10% after two full weeks.',
     claims,
   };
 
   if (first.type === 'bundle_sample') {
     return {
       ...shared,
-      summary: 'Testează un set de mostre pentru cei care nu cumpără flaconul fără să încerce parfumul.',
-      hypothesis: 'Dacă oferim un set de mostre pe pagină, mai mulți vizitatori nehotărâți vor face o primă comandă.',
+      summary: 'Test a sample set for people who will not buy a full bottle without trying it.',
+      hypothesis: 'If we offer a sample set on the page, more undecided visitors will place a first order.',
       requires: ['samples'],
       discountPct: 0,
-      headline: 'Încearcă înainte să alegi',
-      body: 'Setul de 3 mostre de 2 ml îți arată cum evoluează parfumul pe pielea ta.',
-      cta: 'Adaugă setul de mostre',
-      primaryMetric: 'Rata de adăugare în coș a setului de mostre',
+      headline: 'Try it before you choose',
+      body: 'A set of three 2 ml samples shows how the scent develops on your skin.',
+      cta: 'Add the sample set',
+      primaryMetric: 'Sample set add-to-cart rate',
     };
   }
   if (first.type === 'shipping' && capabilities.freeShipping) {
     return {
       ...shared,
-      summary: 'Testează afișarea pragului de livrare gratuită lângă preț.',
-      hypothesis: 'Dacă pragul e vizibil lângă preț, mai mulți vizitatori vor finaliza comanda.',
+      summary: 'Test showing the free shipping threshold next to the price.',
+      hypothesis: 'If the threshold is visible next to the price, more visitors will complete their order.',
       requires: ['freeShipping'],
       discountPct: 0,
-      headline: 'Livrare gratuită',
-      body: 'Vezi pragul de livrare gratuită înainte să adaugi în coș.',
-      cta: 'Adaugă în coș',
-      primaryMetric: 'Rata de finalizare a comenzii',
+      headline: 'Free shipping',
+      body: 'See the free shipping threshold before you add to cart.',
+      cta: 'Add to cart',
+      primaryMetric: 'Checkout completion rate',
     };
   }
   return {
     ...shared,
-    summary: 'Testează un mesaj clar care răspunde schimbării observate.',
-    hypothesis: 'Dacă oferta noastră e mai clară pe pagină, mai mulți vizitatori vor adăuga produsul în coș.',
+    summary: 'Test a clear message that answers the observed change.',
+    hypothesis: 'If our offer is clearer on the page, more visitors will add the product to the cart.',
     requires: [],
     discountPct: 0,
-    headline: 'De ce să alegi acest parfum',
-    body: 'Spune clar ce primește clientul și cum poate returna produsul.',
-    cta: 'Adaugă în coș',
-    primaryMetric: 'Rata de adăugare în coș',
+    headline: 'Why choose this perfume',
+    body: 'Say clearly what the customer gets and how returns work.',
+    cta: 'Add to cart',
+    primaryMetric: 'Add-to-cart rate',
   };
 }

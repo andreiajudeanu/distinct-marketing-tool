@@ -7,16 +7,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from . import config
-from .schemas import AnalysisRequest, AnalysisResult, ApiError, JobView, PageCapture, Step
+from .schemas import AnalysisRequest, AnalysisResult, ApiError, JobView, PageCapture, Step, Usage
 
 STEPS = [
-    ("profile", "Citesc site-ul tău"),
-    ("market", "Stabilesc piața țintă"),
-    ("discovery", "Caut competitori"),
-    ("fetching", "Deschid paginile lor"),
-    ("verification", "Verific competitorii"),
-    ("comparison", "Compar mesajele și designul"),
-    ("recommendations", "Scriu recomandările"),
+    ("profile", "Reading your website"),
+    ("market", "Finding your market"),
+    ("discovery", "Searching for competitors"),
+    ("fetching", "Opening their pages"),
+    ("report", "Writing your report"),
 ]
 
 
@@ -36,6 +34,7 @@ class Job:
     status: str = "queued"
     steps: list[Step] = field(default_factory=lambda: [Step(id=i, label=l) for i, l in STEPS])
     result: AnalysisResult = field(default_factory=AnalysisResult)
+    usage: Usage = field(default_factory=Usage)
     errors: list[ApiError] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     llm_profile: object | None = None
@@ -70,6 +69,18 @@ class JobStore:
             self._purge()
             return self._jobs.get(job_id)
 
+    def find_reusable(self, url: str, request: AnalysisRequest) -> Job | None:
+        """A finished or running report for the same page and market costs nothing to reuse."""
+        with self._lock:
+            self._purge()
+            for job in reversed(list(self._jobs.values())):
+                same = job.page is not None and job.page.url == url \
+                    and job.request.market_override == request.market_override \
+                    and job.request.capabilities == request.capabilities
+                if same and job.status in ("queued", "running", "done"):
+                    return job
+            return None
+
     def running_count(self) -> int:
         with self._lock:
             return sum(job.status in ("queued", "running") for job in self._jobs.values())
@@ -97,6 +108,7 @@ class JobStore:
                 updated_at=job.updated_at,
                 steps=[step.model_copy() for step in job.steps],
                 result=job.result.model_copy(deep=True),
+                usage=job.usage.model_copy(),
                 errors=list(job.errors),
                 warnings=list(job.warnings),
             )

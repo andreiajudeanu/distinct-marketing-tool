@@ -10,7 +10,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 
 http.createServer((request, response) => {
   const { pathname } = new URL(request.url, 'http://localhost');
-  const saving = pathname.match(/^\/save\/([a-z]+\.webp)$/);
+  const saving = pathname.match(/^\/save\/([a-z-]+\.webp)$/);
   if (saving && request.method === 'POST') {
     const chunks = [];
     request.on('data', (chunk) => chunks.push(chunk));

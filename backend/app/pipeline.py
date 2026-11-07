@@ -4,29 +4,20 @@ import logging
 from dataclasses import dataclass
 
 from . import config
-from .analysis import EvidenceBook, compare, data_url, site_content, verify_competitors
-from .discovery import SearchFn, filter_hits, search_all, tavily_search, triage, write_queries
+from .analysis import build_report, data_url
+from .discovery import SearchFn, filter_hits, search_all, tavily_search, triage, usable_queries
 from .errors import AnalysisError
 from .fetcher import FetchFn, fetch_pages
-from .jobs import Job, JobStore
-from .llm import LlmFn, call_claude
+from .jobs import STEPS, Job, JobStore
+from .llm import LlmFn, call_claude, current_usage
 from .market import detect_market
 from .profile import extract_profile, to_business_profile
-from .recommendations import TARGET_COUNT, recommend
+from .recommendations import TARGET_COUNT
 from .schemas import ApiError, LlmProfile
-from .text import registrable_domain
 
 log = logging.getLogger("distinct.pipeline")
 
-STAGES_AFTER = {
-    "profile": ("market", "discovery", "fetching", "verification", "comparison", "recommendations"),
-    "market": ("discovery", "fetching", "verification", "comparison", "recommendations"),
-    "discovery": ("fetching", "verification", "comparison", "recommendations"),
-    "fetching": ("verification", "comparison", "recommendations"),
-    "verification": ("comparison", "recommendations"),
-    "comparison": ("recommendations",),
-    "recommendations": (),
-}
+STAGE_ORDER = [step_id for step_id, _ in STEPS]
 
 
 @dataclass
@@ -70,7 +61,7 @@ class Run:
             job.status = "partial" if job.result.profile else "failed"
         self.store.update(self.job, mutate)
         self.store.set_step(self.job, self.stage, "failed", message)
-        for stage in STAGES_AFTER[self.stage]:
+        for stage in STAGE_ORDER[STAGE_ORDER.index(self.stage) + 1:]:
             self.store.set_step(self.job, stage, "skipped")
 
     def finish(self) -> None:
@@ -93,22 +84,22 @@ async def _run(run: Run, deps: Deps) -> None:
     run.start("market")
     market = detect_market(page, llm_profile, job.request.market_override)
     run.publish(market=market)
-    run.done(market.country_code or "Necunoscută")
+    run.done(market.country_code or "Unknown")
 
     run.start("discovery")
-    queries = await write_queries(deps.llm, profile, market)
+    queries = usable_queries(llm_profile.search_queries)
     hits, warnings = await search_all(deps.search, queries, market.country_code)
     run.warn(*warnings)
     candidates = filter_hits(hits, page.url)
     run.publish(candidates_found=len(candidates))
     if not candidates:
-        run.fail("no_candidates", "Căutarea nu a găsit candidați relevanți. Nu inventăm competitori.")
+        run.fail("no_candidates", "The search found no relevant candidates. We do not invent competitors.")
         return
     shortlist = await triage(deps.llm, profile, candidates)
     if not shortlist:
-        run.fail("no_shortlist", "Niciun candidat nu pare competitor real. Nu inventăm competitori.")
+        run.fail("no_shortlist", "No candidate looks like a real competitor. We do not invent competitors.")
         return
-    run.done(f"{len(candidates)} candidați, {len(shortlist)} de verificat")
+    run.done(f"{len(candidates)} candidates, {len(shortlist)} to check")
 
     run.start("fetching")
     urls = [candidate.homepage for candidate in shortlist]
@@ -122,48 +113,35 @@ async def _run(run: Run, deps: Deps) -> None:
         page = page.model_copy(update={"screenshot_jpeg_base64": own_fetch.page.screenshot_jpeg_base64})
         run.publish(own_screenshot_data_url=data_url(page))
     elif needs_own_shot:
-        run.warn("Nu am putut salva captura site-ului tău. Observațiile vizuale sunt limitate.")
+        run.warn("We could not save a screenshot of your site. Visual notes are limited.")
     readable = sum(item.status == "ok" for item in fetched)
-    run.done(f"{readable} din {len(fetched)} pagini citite")
+    run.done(f"{readable} of {len(fetched)} pages read")
 
-    run.start("verification")
-    book = EvidenceBook()
-    own_domain = registrable_domain(page.url)
-    book.add_site(own_domain, page)
-    competitors, skipped, captures = await verify_competitors(deps.llm, profile, market, shortlist, fetched, book)
-    run.publish(competitors=competitors, skipped=skipped, evidence=list(book.items))
-    if not competitors:
-        run.fail("no_competitors", "Am găsit 0 competitori verificați. Nu inventăm competitori.")
-        return
-    run.done(f"{len(competitors)} competitori verificați")
-    if len(competitors) < 3:
-        run.warn(f"Am verificat doar {len(competitors)} competitori. Afișăm numărul real.")
-
-    run.start("comparison")
-    comparison, positioning, visual = await compare(deps.llm, own_domain, page, competitors, captures, book)
+    run.start("report")
+    report = await build_report(
+        deps.llm, profile, market, page, shortlist, fetched, job.request.capabilities,
+    )
     run.publish(
-        positioning_summary=comparison.positioning_summary,
-        positioning=positioning,
-        visual=visual,
-        own_content=site_content(
-            page, comparison.own_value_propositions, comparison.own_product_categories, comparison.own_pricing_position,
-        ),
+        competitors=report.competitors,
+        skipped=report.skipped,
+        gap_summary=report.gap_summary,
+        recommendations=report.recommendations,
+        evidence=report.evidence,
     )
-    run.done()
-
-    run.start("recommendations")
-    recommendations = await recommend(
-        deps.llm, profile, comparison.positioning_summary, book, job.request.capabilities, market.language,
-    )
-    run.publish(recommendations=recommendations)
-    if len(recommendations) < TARGET_COUNT:
-        run.warn(f"Doar {len(recommendations)} recomandări au dovezi salvate. Restul au fost eliminate.")
-    run.done()
+    if not report.competitors:
+        run.fail("no_competitors", "We verified 0 competitors. We do not invent competitors.")
+        return
+    if len(report.competitors) < config.MAX_COMPETITORS:
+        run.warn(f"We verified only {len(report.competitors)} competitors. This is the real number.")
+    if len(report.recommendations) < TARGET_COUNT:
+        run.warn(f"Only {len(report.recommendations)} recommendations have saved evidence. The rest were removed.")
+    run.done(f"{len(report.competitors)} competitors verified")
     run.finish()
 
 
 async def run_pipeline(store: JobStore, job: Job, deps: Deps) -> None:
     store.update(job, lambda target: setattr(target, "status", "running"))
+    current_usage.set(job.usage)
     run = Run(store, job)
     try:
         await _run(run, deps)
@@ -171,4 +149,6 @@ async def run_pipeline(store: JobStore, job: Job, deps: Deps) -> None:
         run.fail(error.code, error.message)
     except Exception:
         log.exception("Analysis %s failed in stage %s", job.id, run.stage)
-        run.fail("internal", "A apărut o eroare neașteptată. Detaliile sunt în consola serverului.")
+        run.fail("internal", "Something unexpected went wrong. Details are in the server console.")
+    log.info("Analysis %s: %s calls, %s in, %s out, about $%.3f", job.id, job.usage.calls,
+             job.usage.input_tokens, job.usage.output_tokens, job.usage.estimated_cost_usd)

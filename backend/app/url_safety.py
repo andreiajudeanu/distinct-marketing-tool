@@ -19,14 +19,14 @@ class UnsafeUrl(Exception):
 def validate_shape(url: str) -> str:
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https"):
-        raise UnsafeUrl("Doar http și https sunt permise.")
+        raise UnsafeUrl("Only http and https are allowed.")
     if parts.username or parts.password:
-        raise UnsafeUrl("URL-urile cu credențiale nu sunt permise.")
+        raise UnsafeUrl("URLs with credentials are not allowed.")
     host = (parts.hostname or "").lower().rstrip(".")
     if not host:
-        raise UnsafeUrl("URL fără gazdă.")
+        raise UnsafeUrl("URL without a host.")
     if host in BLOCKED_NAMES or host.endswith(BLOCKED_SUFFIXES):
-        raise UnsafeUrl("Adresele locale nu sunt permise.")
+        raise UnsafeUrl("Local addresses are not allowed.")
     return host
 
 
@@ -42,10 +42,10 @@ async def check_public_url(url: str) -> None:
     try:
         resolved = await asyncio.to_thread(socket.getaddrinfo, host, None, type=socket.SOCK_STREAM)
     except socket.gaierror as error:
-        raise UnsafeUrl("Numele de domeniu nu se rezolvă.") from error
+        raise UnsafeUrl("The domain name does not resolve.") from error
     addresses = {item[4][0] for item in resolved}
     if not addresses or not all(is_public_ip(address) for address in addresses):
-        raise UnsafeUrl("Adresa duce într-o rețea privată.")
+        raise UnsafeUrl("The address leads to a private network.")
 
 
 def cached_policy(policy: UrlPolicy) -> UrlPolicy:

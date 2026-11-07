@@ -1,50 +1,67 @@
 import {
   checkExperiment,
-  classifyCandidate,
   createRivalState,
   estimateTestDuration,
   makeSnapshot,
   trackRival,
 } from './lib/rules.js';
-import { esc, sheetView, tabBarView, TABS, tabView, TITLES, updateAnalysisCard, when } from './ui/views.js';
+import {
+  BackendError, getAnalysis, getHealth, isFinished, JOB_KEY, POLL_MS, REPORT_KEY, startAnalysis,
+} from './lib/analysis.js';
 import { icon } from './ui/icons.js';
-import { BackendError, getAnalysis, isFinished, JOB_KEY, POLL_MS, startAnalysis } from './lib/analysis.js';
+import { hideSheet, showSheet, watchSheetDrag } from './ui/sheet.js';
+import { initTheme, saveAppearance } from './ui/theme.js';
+import {
+  analysisCard, esc, lookOf, matchesFilter, sheetView, stageView, tabBarView, tabView, titleOf,
+  topLeftAction, when,
+} from './ui/views.js';
 
 const SERVER = 'http://localhost:8787';
+const STATE_KEY = 'distinctWatch';
+const STATE_VERSION = 2;
 const PAGE_TIMEOUT_MS = 15000;
-const RECHECK_DAYS = 7;
+const SCREENSHOT_QUALITY = 60;
+const FADE_MS = 220;
+
 const app = document.getElementById('app');
 const notice = document.getElementById('notice');
 const tabbar = document.getElementById('tabbar');
-const indicator = document.getElementById('tab-indicator');
 const sheet = document.getElementById('sheet');
 const scroller = document.getElementById('scroller');
 const navTitle = document.getElementById('nav-title');
-const navbar = document.querySelector('.navbar');
+const phone = document.getElementById('phone');
+const stage = document.getElementById('stage');
+const topLeft = document.getElementById('top-left');
 
-const TAB_DURING = { discover: 'market', 'read-candidates': 'market', check: 'changes' };
-const TAB_AFTER = { track: 'changes', approve: 'experiments', 'fix-caps': 'product' };
-const SCREENSHOT_QUALITY = 60;
-
-let state = {
+const emptyState = () => ({
+  version: STATE_VERSION,
   own: null,
   capabilities: { samples: false, bundles: false, freeShipping: false, maxDiscountPct: 0, sessionsPerMonth: '', conversionPct: '' },
+  analysis: null,
+  appliedJob: null,
   candidates: [],
   discoveryLabel: null,
-  classified: [],
   rivals: [],
   draft: null,
   approved: [],
+});
+
+let state = emptyState();
+const ui = {
+  tab: 'home',
+  busy: null,
+  sheet: null,
+  chip: null,
+  query: '',
+  appearance: 'light',
+  confirmReset: false,
+  connection: { analysis: 'unknown', analysisDetail: '', demo: 'unknown', demoDetail: '' },
 };
-const ENTER_MS = 700;
-const TILT_DEG = 10;
-const PARALLAX_PX = 16;
-const ui = { tab: 'product', busy: null, entered: false };
-let enterTimer;
 let activeUrl = '';
+let watchTimer;
 
 async function save() {
-  await chrome.storage.local.set({ distinctWatch: state });
+  await chrome.storage.local.set({ [STATE_KEY]: state });
 }
 
 function showNotice(text) {
@@ -61,10 +78,10 @@ async function api(path, body) {
       body: JSON.stringify(body),
     } : undefined);
   } catch {
-    throw new Error('Serverul local nu răspunde. Pornește-l cu npm start.');
+    throw new Error('The local server is not responding. Start it with npm start.');
   }
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error ?? 'Serverul a întors o eroare.');
+  if (!response.ok) throw new Error(data.error ?? 'The server returned an error.');
   return data;
 }
 
@@ -115,9 +132,9 @@ function requestOrigins(urls) {
 
 async function readOwnPage() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!/^https?:/.test(tab?.url ?? '')) throw new Error('Deschide mai întâi site-ul tău.');
+  if (!/^https?:/.test(tab?.url ?? '')) throw new Error('Open your website first.');
   const raw = await extractFrom(tab.id).catch(() => {
-    throw new Error('Nu am acces la această pagină. Apasă iconița extensiei și încearcă din nou.');
+    throw new Error('We cannot read this page. Click the extension icon and try again.');
   });
   const snapshot = makeSnapshot(raw, new Date().toISOString());
   // Language and domain do not prove a market. Only a declared destination does.
@@ -132,6 +149,7 @@ async function readOwnPage() {
     lang: snapshot.lang,
     offers: snapshot.offers,
   };
+  return tab;
 }
 
 function ownForRules() {
@@ -145,39 +163,6 @@ function ownForRules() {
   };
 }
 
-async function discover() {
-  const result = await api('/api/discover', { own: ownForRules() });
-  state.candidates = result.candidates;
-  state.discoveryLabel = result.label;
-  state.classified = [];
-}
-
-// A competitor verified by the analysis is a site, not a product page, so the
-// product-page rules would call it not comparable. Its evidence is already saved.
-function verdictFor(candidate, snapshot, own) {
-  if (snapshot.status !== 'ok') return { status: snapshot.status, reasons: [] };
-  if (!candidate.verified) return classifyCandidate(snapshot, own);
-  return { status: 'rival', reasons: [{ criterion: 'analiza site-ului', state: 'ok', evidence: candidate.why }] };
-}
-
-async function readCandidates() {
-  const own = ownForRules();
-  const classified = [];
-  for (const candidate of state.candidates) {
-    const snapshot = await readPage(candidate.url);
-    const blocked = snapshot.status !== 'ok';
-    const verdict = verdictFor(candidate, snapshot, own);
-    classified.push({
-      ...verdict,
-      url: candidate.url,
-      title: blocked ? candidate.title : snapshot.product.name || candidate.title,
-      snapshot,
-      selected: verdict.status === 'rival' || blocked,
-    });
-  }
-  state.classified = classified;
-}
-
 async function captureSite(tab) {
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
@@ -189,28 +174,19 @@ async function captureSite(tab) {
 }
 
 function summarize(job, url) {
-  return {
-    jobId: job.job_id,
-    url,
-    status: job.status,
-    label: job.label,
-    steps: job.steps,
-    errors: job.errors,
-  };
+  return { jobId: job.job_id, url, status: job.status, label: job.label, steps: job.steps, errors: job.errors };
 }
 
-async function analyze() {
-  await readOwnPage();
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+const isWebsite = (url) => /^https?:/.test(url);
+
+// The same page and market within 30 minutes reuses the saved report at no cost.
+async function runAnalysis() {
+  // On the report tab there is no site to read, so the last site is used.
+  if (!isWebsite(activeUrl) && state.own) await ownTab();
+  const tab = await readOwnPage();
   const page = await captureSite(tab);
-  const job = await startAnalysis({
-    page,
-    capabilities: {
-      samples: state.capabilities.samples,
-      bundles: state.capabilities.bundles,
-      freeShipping: state.capabilities.freeShipping,
-    },
-  });
+  const { samples, bundles, freeShipping } = state.capabilities;
+  const job = await startAnalysis({ page, capabilities: { samples, bundles, freeShipping } });
   state.analysis = summarize(job, page.url);
   await chrome.storage.local.set({ [JOB_KEY]: { jobId: job.job_id, url: page.url } });
   await openReport();
@@ -222,7 +198,7 @@ async function openReport() {
   await chrome.tabs.create({ url: page });
 }
 
-// Finished competitors feed the existing tracking flow in the Market tab.
+// Finished competitors appear in Market, ready to track.
 function applyAnalysis(job) {
   if (state.appliedJob === job.job_id) return;
   state.appliedJob = job.job_id;
@@ -233,18 +209,16 @@ function applyAnalysis(job) {
     url: item.url,
     title: item.name,
     why: item.why_relevant,
-    verified: item.category,
+    category: item.category,
+    selected: true,
   }));
   state.discoveryLabel = job.label;
-  state.classified = [];
 }
 
 function paintAnalysis() {
   const card = document.getElementById('analysis-card');
-  if (card) card.outerHTML = updateAnalysisCard(state.analysis);
+  if (card) card.outerHTML = analysisCard(state.analysis);
 }
-
-let watchTimer;
 
 async function pollAnalysis() {
   const { jobId, url } = state.analysis ?? {};
@@ -259,13 +233,14 @@ async function pollAnalysis() {
       watchTimer = setTimeout(pollAnalysis, POLL_MS * 3);
       return;
     }
-    state.analysis = { ...state.analysis, status: 'expired', errors: [{ message: 'Analiza a expirat pe server. Raportul salvat rămâne disponibil.' }] };
+    state.analysis = { ...state.analysis, status: 'expired', errors: [] };
   }
   await save();
-  paintAnalysis();
-  if (!isFinished(state.analysis.status) && state.analysis.status !== 'expired') {
+  const running = !isFinished(state.analysis.status) && state.analysis.status !== 'expired';
+  if (running) {
+    paintAnalysis();
     watchTimer = setTimeout(pollAnalysis, POLL_MS);
-  } else if (!ui.busy) {
+  } else if (!ui.busy && !ui.sheet) {
     render();
   }
 }
@@ -275,19 +250,25 @@ function watchAnalysis() {
   if (state.analysis && !isFinished(state.analysis.status) && state.analysis.status !== 'expired') pollAnalysis();
 }
 
-function trackSelected() {
-  const now = new Date().toISOString();
-  const known = new Set(state.rivals.map((rival) => rival.url));
-  for (const item of state.classified) {
-    if (!item.selected || known.has(item.url)) continue;
-    state.rivals.push({ ...createRivalState(item.snapshot, now), title: item.title });
+const untracked = () => state.candidates.filter((item) =>
+  item.selected && !state.rivals.some((rival) => rival.source === item.url));
+
+async function trackSelected() {
+  for (const candidate of untracked()) {
+    const snapshot = await readPage(candidate.url);
+    const rival = createRivalState(snapshot, new Date().toISOString());
+    state.rivals.push({ ...rival, title: candidate.title, source: candidate.url });
   }
 }
 
 async function checkNow() {
   for (const [index, rival] of state.rivals.entries()) {
     const snapshot = await readPage(rival.url);
-    state.rivals[index] = { ...trackRival(rival, snapshot, new Date().toISOString()), title: rival.title };
+    state.rivals[index] = {
+      ...trackRival(rival, snapshot, new Date().toISOString()),
+      title: rival.title,
+      source: rival.source,
+    };
   }
 }
 
@@ -327,6 +308,7 @@ async function propose(rivalIndex, changeId) {
     }),
     previewing: false,
   };
+  ui.sheet = { name: 'experiment' };
 }
 
 // Runs inside the merchant page. Text goes in through textContent only.
@@ -334,17 +316,17 @@ function applyPreview(variant) {
   document.getElementById('distinct-watch-preview')?.remove();
   const box = document.createElement('aside');
   box.id = 'distinct-watch-preview';
-  box.style.cssText = 'margin:16px 0;padding:14px;border:2px dashed #1f5f5b;border-radius:8px;background:#fff;color:#1f1d1a;font-family:system-ui,sans-serif';
+  box.style.cssText = 'margin:16px 0;padding:16px;border-radius:18px;background:#60e4d8;color:#221b3d;font-family:system-ui,sans-serif';
   const line = (tagName, text, style) => {
     const element = document.createElement(tagName);
     element.textContent = text;
     element.style.cssText = style;
     box.append(element);
   };
-  line('div', 'Previzualizare locală, vizibilă doar pentru tine', 'font-size:12px;color:#68635b;margin-bottom:6px');
-  line('div', variant.headline, 'font-size:18px;font-weight:600;margin-bottom:4px');
+  line('div', 'Local preview, visible only to you', 'font-size:12px;margin-bottom:6px');
+  line('div', variant.headline, 'font-size:18px;font-weight:700;margin-bottom:4px');
   line('p', variant.body, 'margin:0 0 10px');
-  line('button', variant.cta, 'padding:8px 12px;border:1px solid #1f5f5b;border-radius:6px;background:#1f5f5b;color:#fff;cursor:pointer;width:auto');
+  line('button', variant.cta, 'padding:9px 14px;border:0;border-radius:12px;background:#6a45e8;color:#fff;font-weight:600;cursor:pointer;width:auto');
   const anchor = [...document.querySelectorAll('button, input[type="submit"], [name="add"]')]
     .find((element) => element.getClientRects().length > 0) ?? document.querySelector('h1');
   (anchor ?? document.body.firstElementChild).insertAdjacentElement('beforebegin', box);
@@ -393,33 +375,32 @@ function download(filename, content, type) {
 
 function briefMarkdown(item) {
   const duration = item.duration
-    ? `Aproximativ ${item.duration.weeks} săptămâni, ${item.duration.perVariant} vizitatori pe variantă.`
-    : 'Nu am date de trafic pentru un calcul.';
+    ? `About ${item.duration.weeks} weeks, ${item.duration.perVariant} visitors per variant.`
+    : 'No traffic data for an estimate.';
   const warning = item.duration?.tooLong
-    ? '\nDepășește șase săptămâni. Alege o schimbare mai mare sau un test înainte/după, cu limitele lui.'
+    ? '\nThis takes over six weeks. Choose a bigger change or a before/after test, with its limits.'
     : '';
-  return `# Experiment: ${item.headline}
+  return `# Test: ${item.headline}
 
-Proveniență text: ${item.label}
-Aprobat: ${when(item.approvedAt)}
-Reverificare rival: ${when(item.recheckAt)}
+Text source: ${item.label}
+Approved: ${when(item.approvedAt)}
 
-Schimbarea la rival e un semnal de investigat. Nu arată că i-au crescut vânzările.
+A rival's change is a signal to investigate. It does not show that its sales grew.
 
-## Ipoteză
+## Hypothesis
 ${item.hypothesis}
 
-## Schimbare propusă
-${item.headline}: ${item.body} (buton: ${item.cta})
+## Proposed change
+${item.headline}: ${item.body} (button: ${item.cta})
 
-## Măsurare
-- Metrică principală: ${item.primaryMetric}
-- Metrică de control: ${item.guardrailMetric}
-- Durată: ${duration}${warning}
-- Condiție de oprire: ${item.stopCondition}
+## Measurement
+- Primary metric: ${item.primaryMetric}
+- Guardrail metric: ${item.guardrailMetric}
+- Duration: ${duration}${warning}
+- Stop if: ${item.stopCondition}
 
-## Dovezi
-${item.evidence.map((e) => `- ${e.rival}: ${e.before ?? 'nimic'} -> ${e.after ?? 'eliminat'} (${e.url})`).join('\n')}
+## Sources
+${item.evidence.map((e) => `- ${e.rival}: ${e.before ?? 'nothing'} -> ${e.after ?? 'removed'} (${e.url})`).join('\n')}
 `;
 }
 
@@ -428,26 +409,68 @@ function blockHtml(item) {
 }
 
 async function bannerPng(item) {
+  await document.fonts.load('700 64px Lexend');
   const canvas = new OffscreenCanvas(1200, 628);
   const context = canvas.getContext('2d');
-  context.fillStyle = '#1f5f5b';
+  const gradient = context.createLinearGradient(0, 0, 1200, 628);
+  gradient.addColorStop(0, '#6a45e8');
+  gradient.addColorStop(1, '#8a66fc');
+  context.fillStyle = gradient;
   context.fillRect(0, 0, 1200, 628);
   context.fillStyle = '#ffffff';
-  context.font = '600 64px Georgia, serif';
+  context.font = '700 60px Lexend, system-ui, sans-serif';
   context.fillText(item.headline.slice(0, 32), 72, 290);
-  context.font = '32px system-ui, sans-serif';
+  context.font = '500 32px Lexend, system-ui, sans-serif';
   context.fillText(item.cta.slice(0, 48), 72, 360);
   return canvas.convertToBlob({ type: 'image/png' });
 }
 
 function approve() {
-  const now = Date.now();
-  state.approved.unshift({
-    ...state.draft,
-    approvedAt: new Date(now).toISOString(),
-    recheckAt: new Date(now + RECHECK_DAYS * 86400000).toISOString(),
-  });
+  state.approved.unshift({ ...state.draft, approvedAt: new Date().toISOString() });
   state.draft = null;
+  ui.sheet = null;
+}
+
+async function refreshConnection() {
+  const connection = { ...ui.connection };
+  try {
+    const health = await getHealth();
+    const keys = health.anthropic_configured && health.tavily_configured;
+    connection.analysis = 'ok';
+    connection.analysisDetail = health.mode === 'mock' ? 'SIMULATED mode' : keys ? 'Keys set' : 'A key is missing in .env';
+  } catch {
+    connection.analysis = 'off';
+    connection.analysisDetail = 'Start it with npm run backend';
+  }
+  try {
+    const status = await api('/api/status');
+    connection.demo = 'ok';
+    connection.demoDetail = status.ai ? 'Tests use live AI' : 'Tests use SIMULATED answers';
+  } catch {
+    connection.demo = 'off';
+    connection.demoDetail = 'Start it with npm start';
+  }
+  ui.connection = connection;
+}
+
+async function resetAll() {
+  if (!ui.confirmReset) {
+    ui.confirmReset = true;
+    return;
+  }
+  await chrome.storage.local.remove([STATE_KEY, JOB_KEY, REPORT_KEY]);
+  state = emptyState();
+  ui.confirmReset = false;
+  ui.sheet = null;
+  ui.tab = 'home';
+}
+
+function selectTab(tab) {
+  if (tab === ui.tab) return;
+  ui.tab = tab;
+  scroller.scrollTo({ top: 0 });
+  app.classList.add('fade-in');
+  setTimeout(() => app.classList.remove('fade-in'), FADE_MS);
 }
 
 function focusSelector(element) {
@@ -460,64 +483,80 @@ function focusSelector(element) {
   }).join('');
 }
 
-function selectTab(tab) {
-  if (tab === ui.tab && ui.entered) return;
-  const step = TABS.findIndex((item) => item.id === tab) - TABS.findIndex((item) => item.id === ui.tab);
-  app.style.setProperty('--dir', step < 0 ? -1 : 1);
-  ui.tab = tab;
-  ui.entered = true;
-  app.classList.remove('enter');
-  void app.offsetWidth;
-  app.classList.add('enter');
-  clearTimeout(enterTimer);
-  enterTimer = setTimeout(() => app.classList.remove('enter'), ENTER_MS);
-  scroller.scrollTo({ top: 0 });
+function paintSheet() {
+  if (ui.sheet) showSheet(sheet, sheetView(state, ui), ui.sheet.detent ?? 'medium');
+  else hideSheet(sheet);
+}
+
+function paintChrome() {
+  const look = lookOf(state, ui);
+  const left = topLeftAction(state, ui);
+  phone.dataset.look = look;
+  stage.innerHTML = look === 'violet' ? stageView() : '';
+  navTitle.textContent = look === 'right' ? titleOf(ui.tab) : '';
+  topLeft.dataset.action = left.action;
+  topLeft.setAttribute('aria-label', left.label);
+  topLeft.title = left.label;
+  topLeft.innerHTML = icon(left.icon);
+  topLeft.disabled = Boolean(ui.busy);
 }
 
 function render() {
   const focused = focusSelector(document.activeElement);
-  navTitle.textContent = TITLES[ui.tab];
+  paintChrome();
   app.innerHTML = tabView(state, ui);
   tabbar.innerHTML = tabBarView(state, ui);
-  const index = TABS.findIndex((tab) => tab.id === ui.tab);
-  indicator.style.setProperty('--index', index < 2 ? index : index + 1);
-  if (state.draft) {
-    sheet.innerHTML = sheetView(state.draft, ui);
-    if (!sheet.open) sheet.showModal();
-  } else if (sheet.open) {
-    sheet.close();
-    sheet.innerHTML = '';
-  }
+  paintSheet();
   if (focused) document.querySelector(focused)?.focus({ preventScroll: true });
 }
 
+function closeSheet() {
+  if (state.draft?.previewing) togglePreview().catch(() => {});
+  state.draft = null;
+  ui.sheet = null;
+  ui.confirmReset = false;
+}
+
 const actions = {
-  'read-own': readOwnPage,
-  analyze,
+  analyze: runAnalysis,
   'open-report': openReport,
-  discover,
-  'read-candidates': readCandidates,
-  track: trackSelected,
+  track: async () => {
+    await trackSelected();
+    selectTab('changes');
+  },
   check: checkNow,
+  'open-offer': () => { ui.sheet = { name: 'offer', detent: 'large' }; },
+  'open-settings': async () => {
+    ui.sheet = { name: 'settings' };
+    await refreshConnection();
+  },
+  'open-change': (dataset) => {
+    ui.sheet = { name: 'change', rival: Number(dataset.rival), change: dataset.change };
+  },
+  'open-share': (dataset) => { ui.sheet = { name: 'share', index: Number(dataset.index) }; },
+  'close-sheet': closeSheet,
   propose: (dataset) => propose(Number(dataset.rival), dataset.change),
   preview: togglePreview,
-  approve,
-  reject: async () => {
-    if (state.draft?.previewing) await togglePreview();
-    state.draft = null;
+  approve: () => {
+    approve();
+    selectTab('tests');
   },
-  'fix-caps': () => { state.draft = null; },
+  'fix-caps': () => {
+    state.draft = null;
+    ui.sheet = { name: 'offer', detent: 'large' };
+  },
+  reset: resetAll,
   brief: (dataset) => {
     const item = state.approved[Number(dataset.index)];
-    download('brief-experiment.md', briefMarkdown(item), 'text/markdown');
+    download('test-brief.md', briefMarkdown(item), 'text/markdown');
   },
   block: (dataset) => {
     const item = state.approved[Number(dataset.index)];
-    download('bloc-experiment.html', blockHtml(item), 'text/html');
+    download('page-block.html', blockHtml(item), 'text/html');
   },
   visual: async (dataset) => {
     const item = state.approved[Number(dataset.index)];
-    download('vizual-experiment.png', await bannerPng(item));
+    download('test-visual.png', await bannerPng(item));
     await chrome.tabs.create({ url: 'https://new.express.adobe.com/' });
   },
 };
@@ -525,19 +564,21 @@ const actions = {
 async function runAction(action, dataset) {
   // Chrome requires this call inside the click, before any await.
   let granted = Promise.resolve(true);
-  if (action === 'read-candidates') granted = requestOrigins(state.candidates.map((c) => c.url));
-  if (['read-own', 'analyze'].includes(action) && /^https?:/.test(activeUrl)) granted = requestOrigins([activeUrl]);
+  if (action === 'track') granted = requestOrigins(untracked().map((item) => item.url));
+  if (action === 'analyze') {
+    const target = isWebsite(activeUrl) ? activeUrl : state.own?.url;
+    if (target) granted = requestOrigins([target]);
+  }
   ui.busy = action;
   showNotice('');
-  if (TAB_DURING[action]) selectTab(TAB_DURING[action]);
   render();
   try {
-    if (await granted === false) throw new Error('Fără permisiune nu pot citi aceste pagini.');
+    if (await granted === false) throw new Error('We need your permission to read these pages.');
     await actions[action](dataset);
     await save();
-    if (TAB_AFTER[action]) selectTab(TAB_AFTER[action]);
   } catch (error) {
     showNotice(error.message);
+    if (!state.draft && !['offer', 'settings'].includes(ui.sheet?.name)) ui.sheet = null;
   } finally {
     ui.busy = null;
     render();
@@ -546,7 +587,7 @@ async function runAction(action, dataset) {
 
 document.addEventListener('click', (event) => {
   if (event.target === sheet) {
-    runAction('reject', {});
+    if (!ui.busy) runAction('close-sheet', {});
     return;
   }
   const tab = event.target.closest('button[data-tab]');
@@ -555,25 +596,46 @@ document.addEventListener('click', (event) => {
     render();
     return;
   }
+  const chip = event.target.closest('button[data-chip]');
+  if (chip) {
+    ui.chip = ui.chip === chip.dataset.chip ? null : chip.dataset.chip;
+    render();
+    return;
+  }
+  const appearance = event.target.closest('button[data-appearance]');
+  if (appearance) {
+    ui.appearance = appearance.dataset.appearance;
+    saveAppearance(ui.appearance);
+    paintSheet();
+    return;
+  }
   const button = event.target.closest('button[data-action]');
   if (button && !ui.busy) runAction(button.dataset.action, { ...button.dataset });
 });
 
 sheet.addEventListener('cancel', (event) => {
   event.preventDefault();
-  if (!ui.busy) runAction('reject', {});
+  if (!ui.busy) runAction('close-sheet', {});
 });
 
 // No re-render for text fields: replacing the DOM here would swallow a click in progress.
-app.addEventListener('change', async (event) => {
+document.addEventListener('change', async (event) => {
   const { dataset, type, checked, value } = event.target;
-  if (dataset.own) state.own[dataset.own] = value;
   if (dataset.cap) state.capabilities[dataset.cap] = type === 'checkbox' ? checked : value;
   if (dataset.select) {
-    state.classified[Number(dataset.select)].selected = checked;
+    state.candidates[Number(dataset.select)].selected = checked;
     render();
   }
   await save();
+});
+
+// Typing only hides cards: rebuilding the screen would take the cursor out of the field.
+document.addEventListener('input', (event) => {
+  if (!('query' in event.target.dataset)) return;
+  ui.query = event.target.value;
+  app.querySelectorAll('[data-card]').forEach((card) => {
+    card.hidden = !matchesFilter(state.candidates[Number(card.dataset.card)], ui);
+  });
 });
 
 async function refreshActiveUrl() {
@@ -581,48 +643,25 @@ async function refreshActiveUrl() {
   activeUrl = tab?.url ?? '';
 }
 
-function watchScroll() {
-  scroller.addEventListener('scroll', () => {
-    navbar.classList.toggle('scrolled', scroller.scrollTop > 8);
-  }, { passive: true });
-}
-
-// Hero objects follow the pointer, so the card reads as a real 3D surface.
-function watchTilt() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  app.addEventListener('pointermove', (event) => {
-    const hero = event.target.closest('[data-tilt]');
-    if (!hero) return;
-    const box = hero.getBoundingClientRect();
-    const x = (event.clientX - box.left) / box.width - 0.5;
-    const y = (event.clientY - box.top) / box.height - 0.5;
-    hero.style.setProperty('--ry', `${x * TILT_DEG}deg`);
-    hero.style.setProperty('--rx', `${y * -TILT_DEG}deg`);
-    hero.style.setProperty('--px', `${x * PARALLAX_PX}px`);
-    hero.style.setProperty('--py', `${y * PARALLAX_PX}px`);
-  });
-  app.addEventListener('pointerout', (event) => {
-    const hero = event.target.closest('[data-tilt]');
-    if (!hero || hero.contains(event.relatedTarget)) return;
-    ['--rx', '--ry', '--px', '--py'].forEach((name) => hero.style.removeProperty(name));
-  });
-}
-
 function initialTab() {
   if (state.rivals.length) return 'changes';
-  return state.candidates.length ? 'market' : 'product';
+  return 'home';
 }
 
 async function start() {
+  ui.appearance = await initTheme();
+  document.getElementById('settings').innerHTML = icon('gear');
   chrome.tabs.onActivated.addListener(refreshActiveUrl);
   chrome.tabs.onUpdated.addListener(refreshActiveUrl);
   await refreshActiveUrl();
-  const stored = await chrome.storage.local.get('distinctWatch');
-  if (stored.distinctWatch) state = stored.distinctWatch;
+  const stored = await chrome.storage.local.get(STATE_KEY);
+  if (stored[STATE_KEY]?.version === STATE_VERSION) state = stored[STATE_KEY];
+  else await chrome.storage.local.remove([STATE_KEY, JOB_KEY, REPORT_KEY]);
+  state.draft = null;
   ui.tab = initialTab();
-  watchScroll();
-  watchTilt();
-  selectTab(ui.tab);
+  watchSheetDrag(sheet, () => {
+    if (!ui.busy) runAction('close-sheet', {});
+  });
   render();
   watchAnalysis();
   // The results page can start a new job after a market correction.
@@ -632,15 +671,6 @@ async function start() {
     state.analysis = { jobId: next.jobId, url: next.url, status: 'queued', label: '', steps: [], errors: [] };
     watchAnalysis();
   });
-  const mode = document.getElementById('mode');
-  try {
-    const status = await api('/api/status');
-    mode.textContent = status.ai ? 'AI: LIVE' : 'AI: SIMULAT';
-    mode.title = status.ai ? 'Răspunsuri de la Claude' : 'Fără cheie API, rezultatele AI sunt simulate';
-  } catch (error) {
-    mode.textContent = 'Server oprit';
-    showNotice(error.message);
-  }
 }
 
 start();

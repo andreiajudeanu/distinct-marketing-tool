@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   normalizePrice,
   makeSnapshot,
-  classifyCandidate,
   diffSnapshots,
   createRivalState,
   trackRival,
@@ -17,20 +16,11 @@ const page = (over = {}) => ({
   lang: 'ro',
   httpStatus: 200,
   challenge: false,
-  sellerMentions: 0,
   shipsTo: ['RO'],
   product: { name: 'Parfum Oud 50 ml', category: 'Parfumuri', price: '320 lei', currency: 'RON', description: 'Note lemnoase', availability: 'InStock' },
   offers: ['Livrare gratuită peste 200 lei'],
   ...over,
 });
-
-const own = {
-  url: 'https://magazin.ro/parfum',
-  name: 'Parfum Santal 50 ml',
-  category: 'Parfumuri',
-  price: { amount: 349, currency: 'RON' },
-  market: { country: 'RO', lang: 'ro' },
-};
 
 test('normalizePrice reads Romanian, European and US formats', () => {
   assert.deepEqual(normalizePrice('1.299,00 lei'), { amount: 1299, currency: 'RON' });
@@ -49,37 +39,6 @@ test('makeSnapshot marks blocked and unavailable pages', () => {
   assert.equal(makeSnapshot(page()).status, 'ok');
 });
 
-test('a comparable store is a rival with verifiable reasons', () => {
-  const r = classifyCandidate(makeSnapshot(page()), own);
-  assert.equal(r.status, 'rival');
-  assert.ok(r.reasons.every((x) => x.state === 'ok'));
-  assert.ok(r.reasons.some((x) => x.criterion === 'preț'));
-});
-
-test('a marketplace is separated, by domain or by multiple sellers', () => {
-  const byDomain = classifyCandidate(makeSnapshot(page({ url: 'https://www.emag.ro/parfum' })), own);
-  assert.equal(byDomain.status, 'marketplace');
-  const bySellers = classifyCandidate(makeSnapshot(page({ sellerMentions: 3 })), own);
-  assert.equal(bySellers.status, 'marketplace');
-});
-
-test('a store from another country is another market', () => {
-  const s = makeSnapshot(page({ lang: 'en', shipsTo: ['DE'], product: { ...page().product, price: '59 EUR', currency: 'EUR' } }));
-  assert.equal(classifyCandidate(s, own).status, 'other_market');
-});
-
-test('missing market data stays unconfirmed, never rival', () => {
-  const s = makeSnapshot(page({ lang: '', shipsTo: [], product: { ...page().product, price: '', currency: '' } }));
-  const r = classifyCandidate(s, own);
-  assert.equal(r.status, 'unconfirmed_market');
-  assert.ok(r.reasons.some((x) => x.state === 'unknown'));
-});
-
-test('a different product type is not comparable', () => {
-  const s = makeSnapshot(page({ product: { ...page().product, name: 'Lumânare parfumată', category: 'Casă' } }));
-  assert.equal(classifyCandidate(s, own).status, 'not_comparable');
-});
-
 test('a new sample offer is detected with before, after and source', () => {
   const before = makeSnapshot(page());
   const after = makeSnapshot(page({ offers: ['Livrare gratuită peste 200 lei', 'Set de 3 mostre la 39 lei'] }));
@@ -96,7 +55,7 @@ test('an unread price is reported as unread, never as a change', () => {
   const after = makeSnapshot(page({ product: { ...page().product, price: '' } }));
   const d = diffSnapshots(before, after);
   assert.deepEqual(d.changes, []);
-  assert.deepEqual(d.unread, ['preț']);
+  assert.deepEqual(d.unread, ['price']);
 });
 
 test('offers missing while the whole offer zone is unread are not removals', () => {
@@ -104,7 +63,7 @@ test('offers missing while the whole offer zone is unread are not removals', () 
   const after = makeSnapshot(page({ offers: [] }));
   const d = diffSnapshots(before, after);
   assert.deepEqual(d.changes, []);
-  assert.deepEqual(d.unread, ['ofertă']);
+  assert.deepEqual(d.unread, ['offer']);
 });
 
 test('dates and countdowns inside an offer are noise', () => {
@@ -173,7 +132,7 @@ test('an experiment within capabilities and with evidence passes', () => {
 test('an undeclared capability is rejected', () => {
   const r = checkExperiment({ requires: ['bundles'], discountPct: 0, claims: [{ text: 'x', evidenceId: 'e1' }] }, caps, evidence);
   assert.equal(r.ok, false);
-  assert.match(r.errors[0], /pachete/);
+  assert.match(r.errors[0], /bundles/);
 });
 
 test('a discount above the limit is rejected', () => {

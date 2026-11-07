@@ -2,35 +2,20 @@
   "profile": {
     "url": "http://localhost:8787/demo/shop",
     "domain": "localhost",
-    "title": "Atelier Aroma",
-    "meta_description": "",
     "business_name": "Atelier Aroma",
-    "category": { "value": "Parfumuri nișă", "status": "inferred", "basis": "Date structurate de produs" },
-    "products": ["Parfum Santal Nocturn 50 ml"],
-    "value_proposition": { "value": "Parfum nișă cu santal și vanilie afumată", "status": "inferred", "basis": "Descrierea produsului" },
-    "target_audience": { "value": "Cumpărători de parfumuri nișă", "status": "inferred", "basis": "Dedus din produs și preț" },
-    "headings": ["Parfum Santal Nocturn 50 ml"]
+    "category": { "value": "Niche perfumes", "status": "inferred" },
+    "value_proposition": { "value": "Niche perfume with sandalwood and smoked vanilla", "status": "inferred" },
+    "target_audience": { "value": "Niche perfume buyers", "status": "inferred" }
   },
   "market": {
     "country_code": "RO",
-    "language": "ro",
+    "language": "en",
     "status": "detected",
     "signals": [
-      { "kind": "livrare în date structurate", "value": "RO", "strength": "strong" },
-      { "kind": "monedă", "value": "RON", "strength": "medium" },
-      { "kind": "limba paginii", "value": "ro", "strength": "weak" }
+      { "kind": "delivery in structured data", "value": "RO", "strength": "strong" },
+      { "kind": "currency", "value": "RON", "strength": "medium" }
     ],
-    "note": "Dedusă din semnalele de mai jos. Corecteaz-o dacă e greșită."
-  },
-  "own_content": {
-    "headlines": ["Parfum Santal Nocturn 50 ml"],
-    "ctas": ["Adaugă în coș"],
-    "value_propositions": ["Parfum nișă cu santal și vanilie afumată"],
-    "product_categories": ["Parfumuri nișă"],
-    "pricing_position": "349 lei pentru 50 ml",
-    "page_structure": ["header", "main: Parfum Santal Nocturn 50 ml"],
-    "palette": ["#fbf8f3", "#7a3e1d", "#241f1a"],
-    "fonts": ["Georgia"]
+    "note": "Inferred from your page. Correct it if it is wrong."
   },
   "own_screenshot_data_url": null,
   "competitors": [
@@ -40,133 +25,76 @@
       "domain": "casa-de-parfum.demo",
       "category": "direct",
       "market_status": "confirmed",
-      "why_relevant": "Vinde parfumuri nișă de 50 ml în lei, la un preț apropiat.",
-      "evidence_ids": ["e1", "e2"],
+      "why_relevant": "Sells 50 ml niche perfumes in lei at a similar price.",
+      "evidence_ids": ["e1"],
       "source_urls": ["http://localhost:8787/demo/rival-a"],
-      "content": {
-        "headlines": ["Parfum Lemn de Oud 50 ml"],
-        "ctas": ["Adaugă în coș"],
-        "value_propositions": ["Parfum nișă cu oud și ambră"],
-        "product_categories": ["Parfumuri nișă"],
-        "pricing_position": "329 lei pentru 50 ml",
-        "page_structure": ["header", "main: Parfum Lemn de Oud 50 ml"],
-        "palette": ["#fbf8f3", "#27504a", "#241f1a"],
-        "fonts": ["Georgia"]
-      },
+      "positioning": { "text": "Its free shipping starts at 300 lei, above your 250 lei.", "evidence_ids": ["e2", "e6"] },
+      "visual": null,
       "screenshot_data_url": null
     },
     {
-      "name": "Nota Lemnoasă",
+      "name": "Nota Lemnoasa",
       "url": "http://localhost:8787/demo/rival-b",
       "domain": "nota-lemnoasa.demo",
       "category": "direct",
       "market_status": "confirmed",
-      "why_relevant": "Vinde parfumuri lemnoase de 50 ml și are retur gratuit în 30 de zile.",
-      "evidence_ids": ["e3", "e4"],
+      "why_relevant": "Sells 50 ml woody perfumes in the same price range.",
+      "evidence_ids": ["e3"],
       "source_urls": ["http://localhost:8787/demo/rival-b"],
-      "content": {
-        "headlines": ["Parfum Cedru Alb 50 ml"],
-        "ctas": ["Adaugă în coș"],
-        "value_propositions": ["Retur gratuit în 30 de zile"],
-        "product_categories": ["Parfumuri lemnoase"],
-        "pricing_position": "365 lei pentru 50 ml",
-        "page_structure": ["header", "main: Parfum Cedru Alb 50 ml"],
-        "palette": ["#fbf8f3", "#3d3a78", "#241f1a"],
-        "fonts": ["Georgia"]
-      },
-      "screenshot_data_url": null
-    },
-    {
-      "name": "Esență Rară",
-      "url": "http://localhost:8787/demo/rival-c",
-      "domain": "esenta-rara.demo",
-      "category": "indirect",
-      "market_status": "unconfirmed",
-      "why_relevant": "Vinde parfumuri nișă, dar pagina nu arată clar unde livrează.",
-      "evidence_ids": ["e5"],
-      "source_urls": ["http://localhost:8787/demo/rival-c"],
-      "content": {
-        "headlines": ["Esență Rară"],
-        "ctas": [],
-        "value_propositions": [],
-        "product_categories": ["Parfumuri nișă"],
-        "pricing_position": "Necitit",
-        "page_structure": [],
-        "palette": [],
-        "fonts": []
-      },
+      "positioning": { "text": "It offers 30 days for returns, against your 14 days.", "evidence_ids": ["e4", "e7"] },
+      "visual": null,
       "screenshot_data_url": null
     }
   ],
   "skipped": [
-    { "domain": "piata-mare.demo", "url": "http://localhost:8787/demo/marketplace", "status": "not_competitor", "reason": "Marketplace cu mai mulți vânzători, nu un magazin comparabil." },
-    { "domain": "maison-lumen.demo", "url": "http://localhost:8787/demo/foreign", "status": "other_market", "reason": "Vinde în altă piață și altă monedă." }
+    { "domain": "esenta-rara.demo", "url": "http://localhost:8787/demo/rival-c", "status": "blocked", "reason": "The site refused access (403)." },
+    { "domain": "piata-mare.demo", "url": "http://localhost:8787/demo/marketplace", "status": "not_competitor", "reason": "A marketplace with many sellers, not a comparable store." },
+    { "domain": "maison-lumen.demo", "url": "http://localhost:8787/demo/foreign", "status": "other_market", "reason": "It sells in another market and currency." }
   ],
   "candidates_found": 5,
-  "positioning_summary": "Toate cele trei magazine vorbesc despre ingrediente. Niciunul nu explică ușor cum alegi un parfum fără să-l încerci.",
-  "positioning": [
-    {
-      "domain": "casa-de-parfum.demo",
-      "similarities": [{ "text": "Ambele vând parfumuri nișă de 50 ml.", "evidence_ids": ["e1", "e6"] }],
-      "differences": [{ "text": "Are prag de livrare gratuită mai mare, 300 lei față de 250 lei.", "evidence_ids": ["e2", "e7"] }]
-    },
-    {
-      "domain": "nota-lemnoasa.demo",
-      "similarities": [{ "text": "Ambele oferă retur gratuit.", "evidence_ids": ["e4", "e8"] }],
-      "differences": [{ "text": "Oferă 30 de zile pentru retur, față de 14 zile la tine.", "evidence_ids": ["e4", "e8"] }]
-    }
-  ],
-  "visual": [
-    {
-      "domain": "casa-de-parfum.demo",
-      "similarities": [],
-      "differences": [],
-      "layout": "Necitit"
-    }
-  ],
+  "gap_summary": {
+    "text": "Every store here talks about ingredients. None explains how to choose a perfume you have not tried, so this is the open position.",
+    "evidence_ids": ["e1", "e5"]
+  },
   "recommendations": [
     {
       "priority": "high",
-      "problem": "Pagina ta spune ce conține parfumul, dar nu ajută pe cineva care nu l-a încercat.",
-      "evidence_ids": ["e6", "e1"],
-      "opportunity": "Rivalii vorbesc tot despre ingrediente, deci explicarea alegerii e un loc liber.",
-      "website_change": "Adaugă lângă preț un bloc scurt care descrie cum evoluează parfumul pe piele.",
-      "example_headline": "Știi cum va mirosi peste trei ore",
-      "example_cta": "Vezi cum evoluează",
-      "expected_benefit_hypothesis": "Dacă decizia devine mai ușoară, mai mulți vizitatori nehotărâți ar putea adăuga produsul în coș. De testat.",
+      "problem": "Your page lists ingredients but does not help someone who has not tried the perfume.",
+      "evidence_ids": ["e5", "e1"],
+      "website_change": "Add a short block next to the price that describes how the scent develops on skin.",
+      "example_headline": "Know how it smells three hours later",
+      "example_cta": "See how it develops",
+      "expected_benefit_hypothesis": "If the choice feels easier, more undecided visitors might add it to the cart. To be tested.",
       "assumptions": []
     },
     {
       "priority": "medium",
-      "problem": "Returul tău de 14 zile e mai scurt decât cel afișat de Nota Lemnoasă.",
-      "evidence_ids": ["e4", "e8"],
-      "opportunity": "Poți compensa cu o promisiune diferită, dacă nu poți extinde returul.",
-      "website_change": "Mută informația despre retur lângă butonul de cumpărare și explică exact condițiile.",
-      "example_headline": "Retur gratuit în 14 zile",
+      "problem": "Your 14-day return window is shorter than the one shown by Nota Lemnoasa.",
+      "evidence_ids": ["e4", "e7"],
+      "website_change": "Move the return information next to the buy button and state the exact terms.",
+      "example_headline": "Free returns within 14 days",
       "example_cta": "",
-      "expected_benefit_hypothesis": "O condiție clară lângă buton ar putea reduce ezitarea la cumpărare. De testat.",
-      "assumptions": ["Presupune că poți păstra returul gratuit în forma actuală."]
+      "expected_benefit_hypothesis": "A clear condition near the button might reduce hesitation at purchase. To be tested.",
+      "assumptions": ["Assumes you can keep free returns in their current form."]
     },
     {
       "priority": "low",
-      "problem": "Pragul tău de livrare gratuită e mai mic decât la Casa de Parfum, dar nu iese în evidență.",
-      "evidence_ids": ["e7", "e2"],
-      "opportunity": "E un avantaj observabil pe care îl poți afișa mai sus.",
-      "website_change": "Afișează pragul de 250 lei imediat sub preț.",
-      "example_headline": "Livrare gratuită peste 250 lei",
+      "problem": "Your free shipping threshold is lower than Casa de Parfum's, but it does not stand out.",
+      "evidence_ids": ["e6", "e2"],
+      "website_change": "Show the 250 lei threshold right under the price.",
+      "example_headline": "Free shipping over 250 lei",
       "example_cta": "",
-      "expected_benefit_hypothesis": "Dacă avantajul e vizibil mai devreme, mai mulți vizitatori l-ar putea lua în calcul. De testat.",
+      "expected_benefit_hypothesis": "If the advantage is seen earlier, more visitors might take it into account. To be tested.",
       "assumptions": []
     }
   ],
   "evidence": [
-    { "id": "e1", "domain": "casa-de-parfum.demo", "url": "http://localhost:8787/demo/rival-a", "kind": "text", "field": "titlu", "quote": "Parfum Lemn de Oud 50 ml", "captured_at": "2026-11-07T12:00:00+00:00" },
-    { "id": "e2", "domain": "casa-de-parfum.demo", "url": "http://localhost:8787/demo/rival-a", "kind": "text", "field": "citat", "quote": "Livrare gratuită peste 300 lei", "captured_at": "2026-11-07T12:00:00+00:00" },
-    { "id": "e3", "domain": "nota-lemnoasa.demo", "url": "http://localhost:8787/demo/rival-b", "kind": "text", "field": "titlu", "quote": "Parfum Cedru Alb 50 ml", "captured_at": "2026-11-07T12:00:00+00:00" },
-    { "id": "e4", "domain": "nota-lemnoasa.demo", "url": "http://localhost:8787/demo/rival-b", "kind": "text", "field": "citat", "quote": "Retur gratuit în 30 de zile", "captured_at": "2026-11-07T12:00:00+00:00" },
-    { "id": "e5", "domain": "esenta-rara.demo", "url": "http://localhost:8787/demo/rival-c", "kind": "text", "field": "titlu", "quote": "Parfum nișă", "captured_at": "2026-11-07T12:00:00+00:00" },
-    { "id": "e6", "domain": "localhost", "url": "http://localhost:8787/demo/shop", "kind": "text", "field": "titlu", "quote": "Parfum Santal Nocturn 50 ml", "captured_at": "2026-11-07T12:00:00+00:00" },
-    { "id": "e7", "domain": "localhost", "url": "http://localhost:8787/demo/shop", "kind": "text", "field": "citat", "quote": "Livrare gratuită peste 250 lei", "captured_at": "2026-11-07T12:00:00+00:00" },
-    { "id": "e8", "domain": "localhost", "url": "http://localhost:8787/demo/shop", "kind": "text", "field": "citat", "quote": "Retur gratuit în 14 zile", "captured_at": "2026-11-07T12:00:00+00:00" }
+    { "id": "e1", "domain": "casa-de-parfum.demo", "url": "http://localhost:8787/demo/rival-a", "kind": "text", "field": "headline", "quote": "Oud Wood Perfume 50 ml", "captured_at": "2026-11-07T12:00:00+00:00" },
+    { "id": "e2", "domain": "casa-de-parfum.demo", "url": "http://localhost:8787/demo/rival-a", "kind": "text", "field": "quote", "quote": "Free shipping over 300 lei", "captured_at": "2026-11-07T12:00:00+00:00" },
+    { "id": "e3", "domain": "nota-lemnoasa.demo", "url": "http://localhost:8787/demo/rival-b", "kind": "text", "field": "headline", "quote": "White Cedar Perfume 50 ml", "captured_at": "2026-11-07T12:00:00+00:00" },
+    { "id": "e4", "domain": "nota-lemnoasa.demo", "url": "http://localhost:8787/demo/rival-b", "kind": "text", "field": "quote", "quote": "Free returns within 30 days", "captured_at": "2026-11-07T12:00:00+00:00" },
+    { "id": "e5", "domain": "localhost", "url": "http://localhost:8787/demo/shop", "kind": "text", "field": "headline", "quote": "Nocturne Sandalwood Perfume 50 ml", "captured_at": "2026-11-07T12:00:00+00:00" },
+    { "id": "e6", "domain": "localhost", "url": "http://localhost:8787/demo/shop", "kind": "text", "field": "quote", "quote": "Free shipping over 250 lei", "captured_at": "2026-11-07T12:00:00+00:00" },
+    { "id": "e7", "domain": "localhost", "url": "http://localhost:8787/demo/shop", "kind": "text", "field": "quote", "quote": "Free returns within 14 days", "captured_at": "2026-11-07T12:00:00+00:00" }
   ]
 }
