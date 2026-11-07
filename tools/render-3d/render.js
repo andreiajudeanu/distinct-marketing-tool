@@ -261,6 +261,33 @@ function dotsEmblem() {
   return group;
 }
 
+// The brand mark in the same clay as the other objects. Same proportions as brand/distinct-mark.svg.
+function logo() {
+  const scale = 1 / 100;
+  const shape = new THREE.Shape();
+  shape.moveTo(-124 * scale, 154 * scale);
+  shape.lineTo(4 * scale, 154 * scale);
+  shape.absarc(4 * scale, 0, 154 * scale, Math.PI / 2, -Math.PI / 2, true);
+  shape.lineTo(-124 * scale, -154 * scale);
+  shape.closePath();
+  const hole = new THREE.Path();
+  hole.moveTo(-58 * scale, 88 * scale);
+  hole.lineTo(2 * scale, 88 * scale);
+  hole.absarc(2 * scale, 0, 88 * scale, Math.PI / 2, -Math.PI / 2, true);
+  hole.lineTo(-58 * scale, -88 * scale);
+  hole.closePath();
+  shape.holes.push(hole);
+  const letter = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.34, curveSegments: 64, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 8,
+  });
+  const group = new THREE.Group();
+  group.add(mesh(new RoundedBoxGeometry(5.1, 5.1, 0.9, 20, 0.44), clay('violet', { clearcoat: 0.7, clearcoatRoughness: 0.25 })));
+  group.add(mesh(letter, clay('white'), [0.04, 0, 0.42]));
+  group.add(mesh(new THREE.SphereGeometry(0.46, 64, 64), clay('aqua', { emissive: COLORS.aqua, emissiveIntensity: 0.12 }), [0.08, 0, 0.72]));
+  group.rotation.set(0.22, -0.36, 0.06);
+  return group;
+}
+
 function render(build, size) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setSize(size, size, false);
@@ -303,6 +330,7 @@ const OBJECTS = {
   lens: [lens, LARGE],
   bell: [bell, LARGE],
   bot: [bot, LARGE],
+  logo: [logo, LARGE],
   cloud: [cloud, SMALL],
   'tile-orange': [tile('orange', targetEmblem), SMALL],
   'tile-blue': [tile('blue', bellEmblem), SMALL],

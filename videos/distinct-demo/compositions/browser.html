@@ -1,0 +1,502 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Lexend";
+          src: url("../assets/fonts/lexend.woff2") format("woff2");
+          font-weight: 100 900;
+        }
+        #browser-root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          font-family: "Lexend", sans-serif;
+          color: #221b3d;
+        }
+        #b-cam {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 1920px;
+          height: 1080px;
+          transform-origin: 0 0;
+        }
+        #b-window-pos {
+          position: absolute;
+          left: 150px;
+          top: 40px;
+          width: 1760px;
+          height: 994px;
+          transform: scale(0.92);
+          transform-origin: 0 0;
+        }
+        #b-window {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          border-radius: 18px;
+          background: #fbfbfb;
+          box-shadow: 0 30px 90px rgba(60, 40, 140, 0.26);
+        }
+        .b-strip {
+          position: relative;
+          height: 46px;
+          background: #dfe3f4;
+        }
+        .b-tab {
+          position: absolute;
+          top: 8px;
+          width: 262px;
+          height: 38px;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          padding: 0 12px;
+          overflow: hidden;
+          border-radius: 11px 11px 0 0;
+          font-size: 14px;
+          font-weight: 500;
+          white-space: nowrap;
+        }
+        #b-tab-a {
+          left: 14px;
+          background: #fbfbfb;
+        }
+        #b-tab-b {
+          left: 280px;
+        }
+        #b-tab-c {
+          left: 546px;
+        }
+        /* Hidden in CSS: a timeline set at 0 does not apply on the very first frame. */
+        #b-tab-b,
+        #b-tab-c,
+        #b-url-b,
+        #b-url-c,
+        #b-img-shop-after,
+        #b-ripple,
+        #b-live,
+        #b-sim {
+          opacity: 0;
+        }
+        .b-fav {
+          flex: 0 0 18px;
+          height: 18px;
+          border-radius: 5px;
+        }
+        #b-tab-a .b-fav {
+          border-radius: 50%;
+          background: #9aa3c4;
+        }
+        #b-tab-c .b-fav {
+          background: #7e3f1c;
+        }
+        .b-bar {
+          position: relative;
+          height: 48px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 0 14px;
+          background: #fbfbfb;
+          border-bottom: 1px solid #e3e5f0;
+        }
+        .b-nav {
+          flex: 0 0 auto;
+          width: 92px;
+          height: 22px;
+        }
+        #b-url {
+          position: relative;
+          flex: 1 1 auto;
+          height: 34px;
+          border-radius: 17px;
+          background: #eef0f8;
+        }
+        .b-url {
+          position: absolute;
+          left: 18px;
+          top: 0;
+          height: 34px;
+          display: flex;
+          align-items: center;
+          font-size: 15px;
+          color: #3a3460;
+        }
+        #b-ext {
+          flex: 0 0 auto;
+          width: 30px;
+          height: 30px;
+          border-radius: 8px;
+        }
+        #b-profile {
+          flex: 0 0 auto;
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          background: #cfd4ea;
+        }
+        #b-view {
+          position: relative;
+          width: 1760px;
+          height: 900px;
+          overflow: hidden;
+          background: #d3dfff;
+        }
+        #b-page {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 1360px;
+          height: 900px;
+          transform-origin: 0 0;
+          background: #d3dfff;
+        }
+        #b-panel {
+          position: absolute;
+          left: 1360px;
+          top: 0;
+          width: 400px;
+          height: 900px;
+          overflow: hidden;
+          background: #d3dfff;
+          box-shadow: -1px 0 0 #c6cce3;
+        }
+        #b-page video,
+        #b-page img {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 1360px;
+          height: 900px;
+          object-fit: cover;
+        }
+        #b-panel video,
+        #b-panel img {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 400px;
+          height: 900px;
+          object-fit: cover;
+        }
+        #b-cursor {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 84px;
+          height: 84px;
+          filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+          pointer-events: none;
+        }
+        #b-ripple {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          border: 5px solid #6a45e8;
+          pointer-events: none;
+        }
+        .b-status {
+          position: absolute;
+          right: 36px;
+          top: 24px;
+          padding: 12px 24px;
+          border-radius: 18px;
+          font-size: 26px;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        #b-live {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          background: #221b3d;
+          color: #fbfbfb;
+        }
+        #b-live i {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #36ead9;
+        }
+        #b-clock {
+          min-width: 58px;
+          font-variant-numeric: tabular-nums;
+        }
+        #b-sim {
+          background: #ece6ff;
+          color: #4a2fc0;
+          letter-spacing: 0.04em;
+        }
+        #b-caps {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 24px;
+          height: 84px;
+          display: grid;
+          place-items: center;
+        }
+        .b-cap {
+          grid-area: 1 / 1;
+          padding: 16px 36px;
+          border-radius: 22px;
+          background: #fbfbfb;
+          box-shadow: 0 12px 34px rgba(60, 40, 140, 0.22);
+          font-size: 36px;
+          font-weight: 500;
+          white-space: nowrap;
+        }
+        #b-note {
+          position: absolute;
+          left: 30px;
+          bottom: 30px;
+          width: 286px;
+          padding: 10px 16px;
+          border-radius: 14px;
+          background: rgba(251, 251, 251, 0.86);
+          color: #3a3460;
+          font-size: 19px;
+          line-height: 1.3;
+        }
+      </style>
+
+      <div id="browser-root" data-composition-id="browser" data-width="1920" data-height="1080">
+        <div id="b-cam">
+          <div id="b-window-pos">
+            <div id="b-window">
+              <div class="b-strip">
+                <div id="b-tab-a" class="b-tab"><span class="b-fav"></span>evomag.ro - Electronice si ele</div>
+                <div id="b-tab-b" class="b-tab">
+                  <img class="b-fav" src="../assets/brand/distinct-mark.svg" alt="" />Distinct report
+                </div>
+                <div id="b-tab-c" class="b-tab"><span class="b-fav"></span>Atelier Aroma, demo shop</div>
+              </div>
+              <div class="b-bar">
+                <svg class="b-nav" viewBox="0 0 92 22" fill="none" stroke="#6b6790" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 11H4M9 5l-6 6 6 6" />
+                  <path d="M38 11h12M45 5l6 6-6 6" />
+                  <path d="M86 11a8 8 0 1 1-2.6-5.9M84 2v5h-5" />
+                </svg>
+                <div id="b-url">
+                  <span id="b-url-a" class="b-url">evomag.ro</span>
+                  <span id="b-url-b" class="b-url">Distinct &nbsp;|&nbsp; results.html</span>
+                  <span id="b-url-c" class="b-url">localhost/demo/shop</span>
+                </div>
+                <img id="b-ext" src="../assets/brand/icon-48.png" alt="Distinct" />
+                <div id="b-profile"></div>
+              </div>
+              <div id="b-view">
+                <div id="b-page">
+                  <img id="b-img-site" class="clip" src="../footage/clips/site-top.png" alt="" data-start="0" data-duration="9.7" data-track-index="10" />
+                  <video id="b-v-site" class="clip" src="../footage/clips/site.mp4" data-start="0.4" data-duration="7" data-track-index="11" data-hf-media-start-basis="local" muted playsinline></video>
+                  <video id="b-v-run" class="clip" src="../footage/clips/run-report.mp4" data-start="9.674" data-duration="10.2" data-track-index="12" data-hf-media-start-basis="local" muted playsinline></video>
+                  <img id="b-img-report" class="clip" src="../footage/clips/report-wide.png" alt="" data-start="19.55" data-duration="2.55" data-track-index="13" />
+                  <video id="b-v-tour" class="clip" src="../footage/clips/tour.mp4" data-start="22" data-duration="11.9" data-track-index="14" data-hf-media-start-basis="local" muted playsinline></video>
+                  <img id="b-img-sources" class="clip" src="../footage/clips/sheet-sources.png" alt="" data-start="33.85" data-duration="0.2" data-track-index="15" />
+                  <img id="b-img-shop" class="clip" src="../footage/clips/shop-before.png" alt="" data-start="34" data-duration="6" data-track-index="16" />
+                  <img id="b-img-shop-after" class="clip" src="../footage/clips/shop-after.png" alt="" data-start="38.7" data-duration="1.3" data-track-index="17" />
+                </div>
+                <div id="b-panel">
+                  <img id="b-img-panel" class="clip" src="../footage/clips/panel-start.png" alt="" data-start="0" data-duration="9.5" data-track-index="20" />
+                  <video id="b-v-panel" class="clip" src="../footage/clips/run-panel-clean.mp4" data-start="9.4" data-duration="11.3" data-track-index="21" data-hf-media-start-basis="local" muted playsinline></video>
+                  <img id="b-img-done" class="clip" src="../footage/clips/panel-done.png" alt="" data-start="20.65" data-duration="13.4" data-track-index="22" />
+                  <img id="b-img-first" class="clip" src="../footage/clips/panel-changes-first.png" alt="" data-start="34" data-duration="1.1" data-track-index="23" />
+                  <img id="b-img-conf" class="clip" src="../footage/clips/panel-changes-confirmed.png" alt="" data-start="35.1" data-duration="0.2" data-track-index="24" />
+                  <video id="b-v-demo" class="clip" src="../footage/clips/demo-panel.mp4" data-start="35.2" data-duration="4.5" data-track-index="25" data-hf-media-start-basis="local" muted playsinline></video>
+                  <img id="b-img-exp" class="clip" src="../footage/clips/panel-experiment.png" alt="" data-start="39.65" data-duration="0.35" data-track-index="26" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="b-ripple"></div>
+          <svg id="b-cursor" viewBox="0 0 24 24">
+            <path d="M3 2v18l5-4.5 3.6 7.1 3.1-1.5-3.5-7h6.9z" fill="#1c1c1c" stroke="#ffffff" stroke-width="1.4" stroke-linejoin="round" />
+          </svg>
+        </div>
+
+        <div id="b-live" class="b-status"><i></i><span>Live analysis, 3× speed</span><span id="b-clock">0:00</span></div>
+        <div id="b-sim" class="b-status">SIMULATED, demo shop</div>
+
+        <div id="b-caps">
+          <p class="b-cap" data-in="0.5" data-out="3.4">Start on any store page.</p>
+          <p class="b-cap" data-in="3.5" data-out="5.2">Click Distinct in your toolbar.</p>
+          <p class="b-cap" data-in="5.3" data-out="9.4">One button analyzes the site in this tab.</p>
+          <p class="b-cap" data-in="9.55" data-out="10.9">Reads your site and finds your market.</p>
+          <p class="b-cap" data-in="10.95" data-out="12.2">Searches for competitors.</p>
+          <p class="b-cap" data-in="12.25" data-out="15.6">Opens their public pages.</p>
+          <p class="b-cap" data-in="15.65" data-out="19.7">Compares them and writes your report.</p>
+          <p class="b-cap" data-in="19.8" data-out="21.9">Done in 31 seconds, for 5.6 cents.</p>
+          <p class="b-cap" data-in="22" data-out="23.9">One clear opportunity, from your own page.</p>
+          <p class="b-cap" data-in="24.3" data-out="26.5">What each rival says and how it looks.</p>
+          <p class="b-cap" data-in="26.9" data-out="28.7">Sites it cannot verify stay out, with the reason.</p>
+          <p class="b-cap" data-in="29.2" data-out="31.3">Three actions you can take, ranked.</p>
+          <p class="b-cap" data-in="31.4" data-out="33.9">Every claim links to a saved source.</p>
+          <p class="b-cap" data-in="34" data-out="35.9">Track rivals. A change counts at the second check.</p>
+          <p class="b-cap" data-in="36" data-out="38.6">Get a test limited to what you can offer.</p>
+          <p class="b-cap" data-in="38.7" data-out="39.75">Preview it on your page. Only you see it.</p>
+        </div>
+
+        <p id="b-note">Independent demo. Not affiliated with the sites shown.</p>
+      </div>
+
+      <script>
+        (() => {
+          // Times in this file run from the start of this scene, 0:10 in the film.
+          const WIN = { x: 150, y: 40, scale: 0.92, chrome: 94 };
+          const page = (x, y) => ({ x: WIN.x + x * WIN.scale, y: WIN.y + (WIN.chrome + y) * WIN.scale });
+          const panel = (x, y) => page(1360 + x, y);
+          const toolbarIcon = { x: WIN.x + 1683 * WIN.scale, y: WIN.y + 70 * WIN.scale };
+          const CURSOR = 84;
+          const tip = (point) => ({ x: point.x - (CURSOR * 3) / 24, y: point.y - (CURSOR * 2) / 24 });
+
+          const FAB_PRESS = 9.4;
+          const REPORT_OPENS = 9.674; // Same as the data-start of #b-v-run.
+          const RUN_SPEED = 3;
+          const REPORT_DONE = 19.55;
+          const TOUR = 22;
+          const DEMO = 35.2;
+
+          const tl = gsap.timeline({ paused: true });
+
+          const shot = (target, scale, screenX = 960, screenY = 500) => ({
+            x: screenX - target.x * scale,
+            y: screenY - target.y * scale,
+            scale,
+          });
+          const FULL = { x: 0, y: 0, scale: 1 };
+          const camera = (view, at, duration) =>
+            tl.to("#b-cam", { ...view, duration, ease: "power2.inOut" }, at);
+
+          const moveCursor = (point, at, duration, ease = "power2.inOut") =>
+            tl.to("#b-cursor", { ...tip(point), duration, ease }, at);
+
+          const press = (point, at) => {
+            tl.to("#b-cursor", { scale: 0.84, duration: 0.09, ease: "power2.in", transformOrigin: "12.5% 8.3%" }, at - 0.09);
+            tl.to("#b-cursor", { scale: 1, duration: 0.2, ease: "power2.out", transformOrigin: "12.5% 8.3%" }, at);
+            tl.set("#b-ripple", { x: point.x - 40, y: point.y - 40, scale: 0.2, opacity: 0.9 }, at);
+            tl.to("#b-ripple", { scale: 2.2, opacity: 0, duration: 0.5, ease: "power2.out" }, at);
+          };
+
+          const setTab = (active, at) => {
+            for (const name of ["a", "b", "c"]) {
+              const on = name === active;
+              tl.set(`#b-tab-${name}`, { backgroundColor: on ? "#fbfbfb" : "rgba(251,251,251,0)" }, at);
+              tl.set(`#b-url-${name}`, { opacity: on ? 1 : 0 }, at);
+            }
+          };
+
+          gsap.set("#b-cursor", { ...tip({ x: 1500, y: 1300 }) });
+
+          // A caption is gone by its data-out, so two never show at once.
+          const CAPTION_EXIT = 0.12;
+          document.querySelectorAll(".b-cap").forEach((cap) => {
+            const start = Number(cap.dataset.in);
+            const end = Number(cap.dataset.out);
+            tl.fromTo(cap, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.24, ease: "power3.out" }, start);
+            tl.to(cap, { opacity: 0, duration: CAPTION_EXIT, ease: "power1.in" }, end - CAPTION_EXIT);
+          });
+
+          // 0:10 The store, then the panel from the toolbar.
+          tl.fromTo("#b-window", { y: 80, opacity: 0, scale: 0.97 }, { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 0);
+          tl.fromTo("#b-note", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.1);
+          tl.fromTo("#b-page", { scale: 1.2941 }, { scale: 1, duration: 0.62, ease: "power3.inOut" }, 4.25);
+          tl.fromTo("#b-panel", { x: 400 }, { x: 0, duration: 0.62, ease: "power3.inOut" }, 4.25);
+          moveCursor(toolbarIcon, 3.45, 0.68, "power3.out");
+          press(toolbarIcon, 4.2);
+          moveCursor(panel(300, 690), 4.7, 0.7);
+          camera(shot(panel(200, 450), 1.25, 1330, 480), 5.15, 0.95);
+
+          // 0:19 The round button starts the analysis.
+          moveCursor(panel(200, 837), 8.45, 0.72);
+          press(panel(200, 837), FAB_PRESS);
+          tl.set("#b-tab-b", { opacity: 1 }, REPORT_OPENS);
+          setTab("b", REPORT_OPENS);
+          moveCursor({ x: 2100, y: 1240 }, FAB_PRESS + 0.22, 0.62, "power2.in");
+
+          tl.fromTo("#b-live", { opacity: 0, y: -18 }, { opacity: 1, y: 0, duration: 0.26, ease: "power3.out" }, FAB_PRESS + 0.1);
+          for (let second = 1; second <= 31; second += 1) {
+            const clock = `0:${String(second).padStart(2, "0")}`;
+            tl.set("#b-clock", { textContent: clock }, FAB_PRESS + second / RUN_SPEED);
+          }
+          tl.to("#b-live", { opacity: 0, duration: 0.2 }, 21.8);
+
+          camera(FULL, 9.55, 0.8);
+          camera(shot(page(680, 600), 1.9, 960, 470), 10.8, 1.05);
+
+          // 0:29 Finished. The saved report replaces the running one.
+          tl.fromTo("#b-img-report", { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "none" }, REPORT_DONE);
+          camera(FULL, 19.7, 1.0);
+
+          // 0:32 The report, driven by the same clicks the capture made.
+          camera(shot(page(680, 560), 1.7, 960, 480), TOUR + 0.15, 0.85);
+          const competitor = page(178.5, 480);
+          const competitorDone = page(922, 116);
+          const skipped = page(264, 602);
+          const skippedDone = page(922, 386);
+          const action = page(1008, 385);
+          const sources = page(465, 552);
+
+          tl.set("#b-cursor", { ...tip({ x: -160, y: 1240 }) }, TOUR + 1);
+          camera(shot(page(560, 440), 1.35, 960, 480), TOUR + 1.7, 0.45);
+          moveCursor(competitor, TOUR + 1.45, 0.6, "power3.out");
+          press(competitor, TOUR + 2.2);
+          camera(shot(page(680, 430), 1.55, 960, 480), TOUR + 2.45, 0.6);
+
+          moveCursor(competitorDone, TOUR + 3.75, 0.5);
+          press(competitorDone, TOUR + 4.407);
+          camera(shot(page(560, 560), 1.35, 960, 480), TOUR + 4.45, 0.42);
+          moveCursor(skipped, TOUR + 4.45, 0.3);
+          press(skipped, TOUR + 4.811);
+          camera(shot(page(680, 650), 1.7, 960, 470), TOUR + 5.0, 0.55);
+
+          moveCursor(skippedDone, TOUR + 6.05, 0.45);
+          press(skippedDone, TOUR + 6.622);
+          camera(shot(page(800, 430), 1.4, 960, 480), TOUR + 6.65, 0.4);
+          moveCursor(action, TOUR + 6.65, 0.3);
+          press(action, TOUR + 7.027);
+          camera(shot(page(680, 420), 1.55, 960, 480), TOUR + 7.3, 0.6);
+
+          moveCursor(sources, TOUR + 8.5, 0.6);
+          press(sources, TOUR + 9.229);
+          camera(shot(page(680, 640), 1.7, 960, 470), TOUR + 9.4, 0.6);
+          moveCursor({ x: 2100, y: 1240 }, TOUR + 9.5, 0.6, "power2.in");
+          camera(FULL, TOUR + 11.55, 0.42);
+
+          // 0:44 Tracking, on the demo shop.
+          tl.set("#b-tab-c", { opacity: 1 }, 34);
+          setTab("c", 34);
+          tl.fromTo("#b-sim", { opacity: 0, y: -18 }, { opacity: 1, y: 0, duration: 0.24, ease: "power3.out" }, 34.05);
+          tl.to("#b-note", { opacity: 0, duration: 0.2 }, 33.8);
+
+          tl.set("#b-cursor", { ...tip({ x: 1700, y: 1240 }) }, 34);
+          moveCursor(panel(200, 829), 34.1, 0.65, "power3.out");
+          press(panel(200, 829), 34.9);
+          camera(shot(panel(200, 500), 1.6, 1150, 380), DEMO + 0.02, 0.66);
+          moveCursor(panel(110, 497), DEMO + 0.0, 0.6);
+          press(panel(110, 497), DEMO + 0.704);
+          moveCursor(panel(200, 859), DEMO + 1.1, 0.7);
+          press(panel(200, 859), DEMO + 2.03);
+          moveCursor(panel(240, 866), DEMO + 2.6, 0.5);
+          press(panel(200, 859), DEMO + 3.454);
+          tl.fromTo("#b-img-shop-after", { opacity: 0 }, { opacity: 1, duration: 0.24, ease: "none" }, 38.72);
+          camera(shot(page(1130, 440), 1.18, 960, 480), 38.72, 0.6);
+          moveCursor({ x: 2100, y: 1240 }, 38.85, 0.55, "power2.in");
+
+          tl.to("#b-cam", { opacity: 0, y: "+=46", duration: 0.2, ease: "power2.in" }, 39.8);
+          tl.to("#b-sim", { opacity: 0, duration: 0.15 }, 39.8);
+
+          window.__timelines["browser"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

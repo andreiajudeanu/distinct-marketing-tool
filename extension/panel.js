@@ -188,6 +188,8 @@ async function runAnalysis() {
   const { samples, bundles, freeShipping } = state.capabilities;
   const job = await startAnalysis({ page, capabilities: { samples, bundles, freeShipping } });
   state.analysis = summarize(job, page.url);
+  // A reused report is already finished, so no poll will fill Market for it.
+  if (isFinished(job.status) && job.result) applyAnalysis(job);
   await chrome.storage.local.set({ [JOB_KEY]: { jobId: job.job_id, url: page.url } });
   await openReport();
   watchAnalysis();

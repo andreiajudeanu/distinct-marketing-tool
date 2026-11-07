@@ -21,7 +21,7 @@ def cors_pattern() -> str:
 
 
 def create_app(deps: Deps | None = None) -> FastAPI:
-    app = FastAPI(title="Distinct Watch analysis")
+    app = FastAPI(title="Distinct analysis")
     app.state.jobs = JobStore()
     app.state.deps = deps
     app.add_middleware(

@@ -3,3 +3,11 @@ node_modules/
 .venv/
 __pycache__/
 .pytest_cache/
+videos/**/node_modules/
+videos/**/renders/
+videos/**/.media/
+videos/**/footage/
+videos/**/out/
+videos/**/.hyperframes/
+videos/**/assets/audio/
+videos/**/assets/sfx/*.mp3

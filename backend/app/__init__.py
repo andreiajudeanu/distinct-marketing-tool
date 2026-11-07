@@ -1,1 +1,1 @@
-"""Distinct Watch analysis backend."""
+"""Distinct analysis backend."""

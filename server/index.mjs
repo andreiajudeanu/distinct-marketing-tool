@@ -91,5 +91,5 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Distinct Watch: ${BASE}/demo/control (AI: ${aiEnabled() ? 'LIVE' : 'SIMULATED'})`);
+  console.log(`Distinct: ${BASE}/demo/control (AI: ${aiEnabled() ? 'LIVE' : 'SIMULATED'})`);
 });

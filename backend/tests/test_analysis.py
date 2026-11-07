@@ -317,7 +317,7 @@ def test_the_whole_pipeline_finishes_with_cited_recommendations(page):
     assert view.result.market.status == "detected"
     assert [c.domain for c in view.result.competitors] == ["rival.ro"]
     assert len(view.result.recommendations) == 3
-    assert any("only 1 competitors" in warning for warning in view.warnings)
+    assert any("only 1 competitor." in warning for warning in view.warnings)
     ids = {item.id for item in view.result.evidence}
     assert all(set(r.evidence_ids) <= ids for r in view.result.recommendations)
 
@@ -333,7 +333,7 @@ def test_too_few_recommendations_are_reported_without_a_paid_retry(page):
     view = run_job(page, deps(llm=llm))
     assert llm.calls.count("LlmReport") == 1
     assert len(view.result.recommendations) == 1
-    assert any("Only 1 recommendations" in warning for warning in view.warnings)
+    assert any("Only 1 recommendation has" in warning for warning in view.warnings)
 
 
 def test_the_backend_takes_the_own_screenshot_when_chrome_could_not(page):

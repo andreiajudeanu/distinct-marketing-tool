@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Distinct demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --ground: #d3dfff;
+        --ground-soft: #e4ebff;
+        --ink: #221b3d;
+        --ink-soft: #4b4470;
+        --violet: #6a45e8;
+        --aqua: #36ead9;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ground);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--ground);
+      }
+      #bg {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background: radial-gradient(1500px 1000px at 50% 44%, var(--ground-soft) 0%, var(--ground) 100%);
+      }
+      .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(70px);
+      }
+      #blob-a {
+        left: -220px;
+        top: -240px;
+        width: 760px;
+        height: 760px;
+        background: rgba(154, 123, 242, 0.34);
+      }
+      #blob-b {
+        right: -260px;
+        bottom: -300px;
+        width: 860px;
+        height: 860px;
+        background: rgba(54, 234, 217, 0.26);
+      }
+      #blob-c {
+        right: 180px;
+        top: -360px;
+        width: 620px;
+        height: 620px;
+        background: rgba(244, 99, 249, 0.16);
+      }
+      #logo-sting {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        object-fit: cover;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="60"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="bg">
+        <div id="blob-a" class="blob"></div>
+        <div id="blob-b" class="blob"></div>
+        <div id="blob-c" class="blob"></div>
+      </div>
+
+      <div
+        id="problem"
+        data-composition-id="problem"
+        data-composition-src="compositions/problem.html"
+        data-start="0"
+        data-duration="6"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <video
+        id="logo-sting"
+        class="clip"
+        src="footage/clips/logo-sting.mp4"
+        data-start="6"
+        data-duration="4"
+        data-track-index="2"
+        muted
+        playsinline
+      ></video>
+
+      <div
+        id="browser"
+        data-composition-id="browser"
+        data-composition-src="compositions/browser.html"
+        data-start="10"
+        data-duration="40"
+        data-track-index="3"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <div
+        id="closing"
+        data-composition-id="closing"
+        data-composition-src="compositions/closing.html"
+        data-start="50"
+        data-duration="10"
+        data-track-index="4"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <audio
+        id="sfx"
+        src="assets/audio/distinct-sfx.wav"
+        data-start="0"
+        data-duration="60"
+        data-track-index="5"
+        data-volume="1"
+      ></audio>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#blob-a", { x: 0, y: 0 }, { x: 260, y: 150, duration: 60, ease: "none" }, 0);
+      tl.fromTo("#blob-b", { x: 0, y: 0 }, { x: -240, y: -170, duration: 60, ease: "none" }, 0);
+      tl.fromTo("#blob-c", { x: 0, y: 0 }, { x: -320, y: 120, duration: 60, ease: "none" }, 0);
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

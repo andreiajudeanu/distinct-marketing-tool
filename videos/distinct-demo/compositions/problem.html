@@ -1,0 +1,342 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Lexend";
+          src: url("../assets/fonts/lexend.woff2") format("woff2");
+          font-weight: 100 900;
+        }
+        #problem-root {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          font-family: "Lexend", sans-serif;
+          color: #221b3d;
+        }
+        .p-beat {
+          position: absolute;
+          inset: 0;
+        }
+        #p-beat-2,
+        #p-beat-3 {
+          opacity: 0;
+        }
+        .p-title {
+          position: absolute;
+          left: 120px;
+          top: 112px;
+          width: 1680px;
+          font-size: 90px;
+          line-height: 1.1;
+          font-weight: 700;
+          letter-spacing: -0.025em;
+          white-space: nowrap;
+        }
+        .p-word {
+          display: inline-block;
+        }
+        #p-cards {
+          position: absolute;
+          left: 120px;
+          right: 120px;
+          top: 300px;
+          display: flex;
+          gap: 30px;
+        }
+        .p-card {
+          flex: 1 1 0;
+          height: 640px;
+          border-radius: 34px;
+          overflow: hidden;
+          background: #fbfbfb;
+          box-shadow: 0 26px 60px rgba(60, 40, 140, 0.16);
+        }
+        .p-card-bar {
+          height: 112px;
+          display: flex;
+          align-items: center;
+          padding: 0 36px;
+          font-size: 36px;
+          font-weight: 600;
+        }
+        #p-card-1 .p-card-bar {
+          background: #7652e6;
+          color: #fbfbfb;
+        }
+        #p-card-2 .p-card-bar {
+          background: #36ead9;
+        }
+        #p-card-3 .p-card-bar {
+          background: #f463f9;
+        }
+        #p-card-4 .p-card-bar {
+          background: #ffa945;
+        }
+        .p-card-thumb {
+          height: 190px;
+          margin: 34px 36px 0;
+          border-radius: 22px;
+          background: #e7e6f3;
+        }
+        .p-card-line {
+          margin: 28px 36px 0;
+          font-size: 42px;
+          line-height: 1.16;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+        }
+        .p-card-line + .p-card-line {
+          margin-top: 6px;
+        }
+        .p-card-button {
+          display: inline-block;
+          margin: 26px 36px 0;
+          padding: 14px 30px;
+          border-radius: 16px;
+          background: #221b3d;
+          color: #fbfbfb;
+          font-size: 28px;
+          font-weight: 600;
+        }
+
+        #p-win {
+          position: absolute;
+          left: 120px;
+          top: 290px;
+          width: 1680px;
+          height: 660px;
+          border-radius: 26px;
+          overflow: hidden;
+          background: #fbfbfb;
+          box-shadow: 0 30px 70px rgba(60, 40, 140, 0.2);
+        }
+        #p-strip {
+          --n: 1;
+          display: flex;
+          height: 84px;
+          padding: 12px 12px 0;
+          overflow: hidden;
+          background: #dfe3f4;
+        }
+        .p-tab {
+          flex: 0 0 calc(100% / var(--n));
+          min-width: 0;
+          height: 72px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 0 16px;
+          overflow: hidden;
+          border-radius: 18px 18px 0 0;
+          border-right: 2px solid #c6cce3;
+          font-size: 26px;
+          font-weight: 500;
+          white-space: nowrap;
+          background: #eceffa;
+        }
+        .p-tab i {
+          flex: 0 0 26px;
+          height: 26px;
+          border-radius: 50%;
+          background: #7652e6;
+        }
+        .p-tab:nth-child(3n + 2) i {
+          background: #2a93b8;
+        }
+        .p-tab:nth-child(3n) i {
+          background: #e0559f;
+        }
+        #p-body {
+          padding: 54px 60px;
+        }
+        .p-row {
+          display: flex;
+          align-items: center;
+          gap: 34px;
+          height: 112px;
+          border-bottom: 2px solid #e7e6f3;
+          font-size: 36px;
+          font-weight: 500;
+        }
+        .p-row b {
+          flex: 0 0 340px;
+          font-weight: 600;
+        }
+        .p-row span {
+          flex: 1 1 0;
+          color: #57507a;
+        }
+
+        #p-question {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        }
+        #p-q-text {
+          font-size: 136px;
+          line-height: 1.1;
+          font-weight: 700;
+          letter-spacing: -0.03em;
+        }
+        #p-q-accent {
+          display: inline-block;
+          color: #6a45e8;
+        }
+        #p-q-rule {
+          width: 720px;
+          height: 16px;
+          margin-top: 30px;
+          margin-left: 620px;
+          border-radius: 8px;
+          background: #36ead9;
+          transform-origin: 0 50%;
+        }
+      </style>
+
+      <div id="problem-root" data-composition-id="problem" data-width="1920" data-height="1080">
+        <div id="p-beat-1" class="p-beat">
+          <h1 class="p-title">
+            <span class="p-word p1w">Every</span>
+            <span class="p-word p1w">store</span>
+            <span class="p-word p1w">says</span>
+            <span class="p-word p1w">the</span>
+            <span class="p-word p1w">same</span>
+            <span class="p-word p1w">thing.</span>
+          </h1>
+          <div id="p-cards">
+            <div id="p-card-1" class="p-card">
+              <div class="p-card-bar">Store A</div>
+              <div class="p-card-thumb"></div>
+              <p class="p-card-line">Best prices.</p>
+              <p class="p-card-line">Fast delivery.</p>
+              <span class="p-card-button">Shop now</span>
+            </div>
+            <div id="p-card-2" class="p-card">
+              <div class="p-card-bar">Store B</div>
+              <div class="p-card-thumb"></div>
+              <p class="p-card-line">Best prices.</p>
+              <p class="p-card-line">Fast delivery.</p>
+              <span class="p-card-button">Shop now</span>
+            </div>
+            <div id="p-card-3" class="p-card">
+              <div class="p-card-bar">Store C</div>
+              <div class="p-card-thumb"></div>
+              <p class="p-card-line">Best prices.</p>
+              <p class="p-card-line">Fast delivery.</p>
+              <span class="p-card-button">Shop now</span>
+            </div>
+            <div id="p-card-4" class="p-card">
+              <div class="p-card-bar">Store D</div>
+              <div class="p-card-thumb"></div>
+              <p class="p-card-line">Best prices.</p>
+              <p class="p-card-line">Fast delivery.</p>
+              <span class="p-card-button">Shop now</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="p-beat-2" class="p-beat">
+          <h1 class="p-title">
+            <span class="p-word p2w">Checking</span>
+            <span class="p-word p2w">rivals</span>
+            <span class="p-word p2w">by</span>
+            <span class="p-word p2w">hand</span>
+            <span class="p-word p2w">takes</span>
+            <span class="p-word p2w">hours.</span>
+          </h1>
+          <div id="p-win">
+            <div id="p-strip"></div>
+            <div id="p-body">
+              <div class="p-row"><b>Rival</b><span>Price</span><span>Delivery</span><span>Promise</span></div>
+              <div class="p-row"><b>Rival 1</b><span>?</span><span>?</span><span>?</span></div>
+              <div class="p-row"><b>Rival 2</b><span>?</span><span>?</span><span>?</span></div>
+              <div class="p-row"><b>Rival 3</b><span>?</span><span>?</span><span>?</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="p-beat-3" class="p-beat">
+          <div id="p-question">
+            <p id="p-q-text">
+              <span class="p-word p3w">So</span>
+              <span class="p-word p3w">what</span>
+              <span class="p-word p3w">makes</span>
+              <span class="p-word p3w">you</span>
+              <span id="p-q-accent" class="p3w">different?</span>
+            </p>
+            <div id="p-q-rule"></div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          const TABS = 16;
+          const TAB_STEP = 0.105;
+          const TAB_START = 2.15;
+          const TOPICS = ["prices", "delivery", "promos", "returns"];
+          const strip = document.getElementById("p-strip");
+          for (let index = 1; index <= TABS; index += 1) {
+            const tab = document.createElement("div");
+            tab.className = "p-tab";
+            const dot = document.createElement("i");
+            const label = document.createElement("span");
+            label.textContent = `Rival ${index} ${TOPICS[index % TOPICS.length]}`;
+            tab.append(dot, label);
+            strip.append(tab);
+          }
+
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo(
+            ".p1w",
+            { y: 46, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.42, stagger: 0.065, ease: "power3.out" },
+            0.04,
+          );
+          tl.fromTo(
+            ".p-card",
+            { y: 90, opacity: 0, scale: 0.95 },
+            { y: 0, opacity: 1, scale: 1, duration: 0.5, stagger: 0.12, ease: "back.out(1.4)" },
+            0.42,
+          );
+
+          tl.set("#p-beat-1", { opacity: 0 }, 2);
+          tl.set("#p-beat-2", { opacity: 1 }, 2);
+          tl.fromTo(
+            ".p2w",
+            { y: 40, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.34, stagger: 0.05, ease: "power3.out" },
+            2.02,
+          );
+          tl.fromTo("#p-win", { y: 70, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, 2.02);
+          for (let index = 2; index <= TABS; index += 1) {
+            tl.set(strip, { "--n": index }, TAB_START + (index - 2) * TAB_STEP);
+          }
+
+          tl.to("#p-win", { scale: 1.32, opacity: 0, duration: 0.3, ease: "power2.in" }, 3.95);
+          tl.to("#p-beat-2 .p-title", { opacity: 0, y: -40, duration: 0.24, ease: "power2.in" }, 3.95);
+          tl.set("#p-beat-3", { opacity: 1 }, 4.1);
+          tl.fromTo(
+            ".p3w",
+            { y: 60, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.44, stagger: 0.09, ease: "power3.out" },
+            4.12,
+          );
+          tl.fromTo("#p-q-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power3.inOut" }, 4.72);
+
+          window.__timelines["problem"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

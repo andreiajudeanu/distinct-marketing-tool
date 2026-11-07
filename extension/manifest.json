@@ -1,9 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "Distinct Watch",
+  "name": "Distinct",
   "version": "0.1.0",
-  "description": "Urmărește piața, arată schimbările cu dovezi și propune experimente pe pagina ta.",
-  "action": { "default_title": "Distinct Watch" },
+  "description": "Finds your competitors, compares them with evidence and shows you how to stand out.",
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Distinct",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "32": "assets/icons/icon-32.png"
+    }
+  },
   "background": { "service_worker": "background.js", "type": "module" },
   "side_panel": { "default_path": "panel.html" },
   "permissions": ["sidePanel", "storage", "scripting", "activeTab", "tabs"],

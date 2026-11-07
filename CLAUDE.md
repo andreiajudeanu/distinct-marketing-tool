@@ -1,4 +1,4 @@
-# Distinct Watch
+# Distinct
 
 Extensie Chrome de marketing pentru hackathonul Adobe „Marketing Reimagined”. Un marketer pornește de la site-ul lui. Extensia găsește automat competitorii din piața lui, compară mesajele și designul și scrie trei recomandări cu dovezi. Competitorii pot fi urmăriți: extensia le salvează oferta, arată schimbările înainte/după și propune un experiment limitat la ce poate oferi magazinul, afișat local pe pagina lui.
 

@@ -131,10 +131,13 @@ async def _run(run: Run, deps: Deps) -> None:
     if not report.competitors:
         run.fail("no_competitors", "We verified 0 competitors. We do not invent competitors.")
         return
-    if len(report.competitors) < config.MAX_COMPETITORS:
-        run.warn(f"We verified only {len(report.competitors)} competitors. This is the real number.")
-    if len(report.recommendations) < TARGET_COUNT:
-        run.warn(f"Only {len(report.recommendations)} recommendations have saved evidence. The rest were removed.")
+    found = len(report.competitors)
+    if found < config.MAX_COMPETITORS:
+        run.warn(f"We verified only {found} competitor{'' if found == 1 else 's'}. This is the real number.")
+    kept = len(report.recommendations)
+    if kept < TARGET_COUNT:
+        noun = "recommendation has" if kept == 1 else "recommendations have"
+        run.warn(f"Only {kept} {noun} saved evidence. The rest were removed.")
     run.done(f"{len(report.competitors)} competitors verified")
     run.finish()
 

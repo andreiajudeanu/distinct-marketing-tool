@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Distinct">
+  <defs>
+    <linearGradient id="distinct-bg" x1="0.12" y1="0" x2="0.88" y2="1">
+      <stop offset="0" stop-color="#8a66fc"/>
+      <stop offset="1" stop-color="#6a45e8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#distinct-bg)"/>
+  <path fill="#ffffff" fill-rule="evenodd" d="M132 102h128c85 0 154 69 154 154s-69 154-154 154H132V102Zm66 66v176h60c49 0 88-39 88-88s-39-88-88-88h-60Z"/>
+  <circle cx="264" cy="256" r="46" fill="#60e4d8"/>
+</svg>

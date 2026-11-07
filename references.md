@@ -1,4 +1,4 @@
-# Referințe vizuale Distinct Watch
+# Referințe vizuale Distinct
 
 Interfața reproduce limbajul vizual din `examples/Screenshot 2026-11-07 142804.png`: aceleași culori, proporții, compoziții și bare. Aplicația pornește în Light. Dark se alege din Settings.
 

@@ -1,4 +1,10 @@
-# Distinct Watch
+# Distinct
+
+<img src="brand/distinct-logo.svg" alt="Distinct" width="260">
+
+<a href="docs/distinct-demo.mp4"><img src="docs/distinct-preview.gif" alt="Distinct analyzes a store in Chrome, then opens a report with competitors and recommended actions" width="100%"></a>
+
+**[Watch the 1-minute demo with sound](docs/distinct-demo.mp4)**. The preview above is a silent 16-second excerpt. In the film the analysis runs at 3× speed, and the tracking part uses the SIMULATED demo shop.
 
 A Chrome extension for marketers. Open your website and click **Analyze my website**. The extension finds your competitors on its own, reads their pages, compares their messages and design, and gives you three evidence-backed recommendations. You can then track those competitors and turn their changes into tests limited to what you can actually offer.
 
